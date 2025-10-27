@@ -15,23 +15,6 @@ from functools import wraps
 from dotenv import load_dotenv
 load_dotenv()  # reads .env
 
-from twilio.rest import Client
-
-# ===== Twilio config (no hard-coded secrets) =====
-TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
-TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
-TWILIO_VERIFY_SERVICE_SID = os.getenv("TWILIO_VERIFY_SERVICE_SID")  # required (you use Verify)
-TWILIO_FROM = os.getenv("TWILIO_FROM")  # optional, only if you send SMS directly
-
-missing = [k for k, v in {
-    "TWILIO_ACCOUNT_SID": TWILIO_ACCOUNT_SID,
-    "TWILIO_AUTH_TOKEN": TWILIO_AUTH_TOKEN,
-    "TWILIO_VERIFY_SERVICE_SID": TWILIO_VERIFY_SERVICE_SID,
-}.items() if not v]
-if missing:
-    raise RuntimeError(f"Missing required environment variables: {', '.join(missing)}")
-
-twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
 app = Flask(__name__)
 app.secret_key = os.getenv("APP_SECRET_KEY", "dev-only-change-this")  # set real secret in production
@@ -485,10 +468,7 @@ def login():
 
         u = rows[0]
 
-        if not u['phone_verified']:
-            flash('Please verify your mobile via OTP.', 'warning')
-            session['otp_user_id'] = u['id']
-            return redirect(url_for('verify_otp'))
+
 
         if not u['is_active'] and u['role'] != 'customer':
             flash('Your account awaits admin approval.', 'warning')
@@ -561,106 +541,39 @@ def register():
         phone = (request.form.get('phone','') or '').strip()
         password = request.form.get('password','') or ''
 
-        # Basic validation to prevent silent failures
-        if not name or not email or not phone or not password:
-            flash('Please fill all fields.', 'warning')
+        # Basic validation
+        if not name or not email or not password:
+            flash('Please fill all required fields.', 'warning')
             return redirect(url_for('register'))
         if len(password) < 6:
             flash('Password must be at least 6 characters.', 'warning')
             return redirect(url_for('register'))
 
-        # Normalize phone so Twilio gets +91XXXXXXXXXX (or +<countrycode>…)
-        phone = normalize_phone(phone)
+        # Optional: standardize phone but no OTP is used
+        if phone:
+            phone = normalize_phone(phone)
 
         try:
+            # Create customer as verified & active immediately
             uid = execute("""
                 INSERT INTO users (name,email,phone,password_hash,role,phone_verified,is_active,created_at)
-                VALUES (?,?,?,?, 'customer', 0, 0, ?)
+                VALUES (?,?,?,?, 'customer', 1, 1, ?)
             """, (name, email, phone, generate_password_hash(password), datetime.utcnow().isoformat()))
         except Exception:
-            # Most common: UNIQUE(email) or UNIQUE(phone)
             flash('Email or phone already registered.', 'danger')
             return redirect(url_for('register'))
 
-        # >>> Twilio Verify: send OTP via SMS <<<
-        try:
-            twilio_client.verify.v2.services(TWILIO_VERIFY_SERVICE_SID).verifications.create(
-                to=phone,
-                channel='sms'
-            )
-        except Exception as e:
-            # Roll back the user if you want, or just show error
-            flash(f'Failed to send OTP: {e}', 'danger')
-            return redirect(url_for('register'))
-
-        session['otp_user_id'] = uid
-        flash('OTP sent to your mobile. Please verify.', 'info')
-        # ✅ Ensure redirect to verify_otp always happens
-        return redirect(url_for('verify_otp'))
+        # Auto-login on successful signup
+        session['user_id'] = uid
+        flash('Account created! You are logged in.', 'success')
+        return redirect(url_for('index'))
 
     return render_template('register.html')
 
-@app.route('/verify-otp', methods=['GET','POST'])
-def verify_otp():
-    uid = session.get('otp_user_id')
-    if not uid:
-        flash('No OTP session. Please register or login first.', 'warning')
-        return redirect(url_for('login'))
-
-    # Get the phone saved for this user (should already be normalized)
-    rows = query("SELECT phone FROM users WHERE id=?", (uid,))
-    if not rows:
-        flash("User not found.", "danger")
-        return redirect(url_for('login'))
-    phone = rows[0]['phone']
-
-    if request.method == 'POST':
-        code = (request.form.get('code','') or '').strip()
-        if not code:
-            flash('Please enter the OTP code.', 'warning')
-            return redirect(url_for('verify_otp'))
-
-        try:
-            # Verify the code with Twilio Verify
-            result = twilio_client.verify.v2.services(TWILIO_VERIFY_SERVICE_SID).verification_checks.create(
-                to=phone,
-                code=code
-            )
-            if result.status == 'approved':
-                execute('UPDATE users SET phone_verified=1 WHERE id=?', (uid,))
-                flash('Mobile verified! Await admin approval to log in.', 'success')
-                return redirect(url_for('login'))
-            else:
-                flash('Invalid OTP. Please try again.', 'danger')
-                return redirect(url_for('verify_otp'))
-        except Exception as e:
-            flash(f'OTP verification error: {e}', 'danger')
-            return redirect(url_for('verify_otp'))
-
-    # GET -> render the page with the form to enter the OTP
-    return render_template('verify_otp.html')
 
 
-@app.route('/resend-otp', methods=['POST'])
-def resend_otp():
-    uid = session.get('otp_user_id')
-    if not uid:
-        return jsonify({'ok': False, 'msg': 'No OTP session.'}), 400
 
-    u = query('SELECT phone FROM users WHERE id=?', (uid,))
-    if not u:
-        return jsonify({'ok': False, 'msg': 'User not found.'}), 404
 
-    phone = u[0]['phone']
-    try:
-        # Re-trigger a verification via Twilio Verify
-        twilio_client.verify.v2.services(TWILIO_VERIFY_SERVICE_SID).verifications.create(
-            to=phone,
-            channel='sms'
-        )
-        return jsonify({'ok': True, 'msg': 'OTP resent.'})
-    except Exception as e:
-        return jsonify({'ok': False, 'msg': f'Failed to resend OTP: {e}'}), 500
 
 
 @app.route('/logout')

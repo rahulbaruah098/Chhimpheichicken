@@ -211,7 +211,7 @@ html.page-enter.page-ready{opacity:1; transform:none; transition: opacity .5s va
 }
 .hero-slide.is-active{opacity:1; transform: translateX(0)}
 .hero-slide img{
-  position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
+  position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center;
   filter: contrast(1.04) saturate(1.06) brightness(.9);
   transform: scale(1.03);
   transition: transform 6s linear;
@@ -328,6 +328,31 @@ html.page-enter.page-ready{opacity:1; transform:none; transition: opacity .5s va
   .hero-dots{ bottom:10px }
   .pro-ratings{ grid-template-columns:1fr; }
 }
+
+/* ======== MOBILE OPTIMIZATION FOR FULL-BLEED HERO (added, keeps desktop intact) ======== */
+@media (max-width: 480px){
+  .hero-fw{
+    height: clamp(360px, 58vh, 520px);        /* shorter on small screens */
+    border-radius: 0 0 12px 12px;             /* slightly smaller curve */
+  }
+  .hero-caption{
+    padding: 0 12px;                          /* tighter side padding */
+  }
+  .hero-nav{
+    width: 36px; height: 36px;                /* easier tap target */
+    background: rgba(0,0,0,.50);
+  }
+  .hero-dots{
+    bottom: 8px; gap: 10px;
+  }
+  .hero-dots button{
+    width: 10px; height: 10px;                /* bigger dot hit area */
+  }
+  .hero-dots button.is-active{
+    width: 22px;                              /* active pill size */
+  }
+}
+
 @media (prefers-reduced-motion: reduce){
   *{ animation: none !important; transition: none !important }
 }
