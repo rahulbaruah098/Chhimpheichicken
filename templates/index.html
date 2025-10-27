@@ -1,58 +1,49 @@
 {% extends "base.html" %}
 {% block content %}
 
-<!-- ===================== FULL-BLEED HERO SLIDER (edge-to-edge) ===================== -->
+<!-- ===================== DESKTOP/TABLET HERO (slider) ===================== -->
 <section class="hero-fw" aria-label="Fresh meats banner">
   <div class="hero-track" id="heroTrack" data-interval="4800">
     <!-- Slides -->
     <figure class="hero-slide is-active">
       <img src="static/2.jpg" alt="Fresh farm chicken">
-      <figcaption class="hero-caption">
-        
-        
-      </figcaption>
+      <figcaption class="hero-caption"></figcaption>
     </figure>
 
     <figure class="hero-slide">
       <img src="static/3.jpg" alt="Juicy grilled pieces">
-      <figcaption class="hero-caption">
-        
-        
-      </figcaption>
+      <figcaption class="hero-caption"></figcaption>
     </figure>
 
     <figure class="hero-slide">
       <img src="static/4.jpg" alt="Hygienic preparation">
-      <figcaption class="hero-caption">
-        
-        
-      </figcaption>
+      <figcaption class="hero-caption"></figcaption>
     </figure>
 
     <figure class="hero-slide">
       <img src="static/5.jpg" alt="Premium cuts">
-      <figcaption class="hero-caption">
-        
-        
-      </figcaption>
+      <figcaption class="hero-caption"></figcaption>
     </figure>
 
     <figure class="hero-slide">
       <img src="static/1.jpg" alt="Trusted local stores">
-      <figcaption class="hero-caption">
-        
-        
-      </figcaption>
+      <figcaption class="hero-caption"></figcaption>
     </figure>
   </div>
 
-  <!-- Navigation -->
+  <!-- Navigation (desktop only) -->
   <button class="hero-nav prev" aria-label="Previous slide">‹</button>
   <button class="hero-nav next" aria-label="Next slide">›</button>
   <div class="hero-dots" id="heroDots" aria-label="Slide navigation"></div>
 </section>
 
-<!-- ===================== VALUE PROPS (unchanged) ===================== -->
+<!-- ===================== MOBILE HERO (single static image) ===================== -->
+<section class="hero-mobile" aria-label="Fresh meats banner (mobile)">
+  <!-- Replace the src below with your new mobile hero image -->
+  <img src="static/banner.jpg" alt="Chhimphei Chicken — fresh meats delivered" loading="eager">
+</section>
+
+<!-- ===================== VALUE PROPS ===================== -->
 <section class="value-strip">
   <div class="value-grid">
     <div class="value-card plx" data-depth="0.06">
@@ -78,7 +69,7 @@
   </div>
 </section>
 
-<!-- ===================== FEATURED PRODUCTS (redesigned) ===================== -->
+<!-- ===================== FEATURED PRODUCTS ===================== -->
 <section class="pro-grid-wrap">
   <header class="pro-header">
     <h2>Featured Products</h2>
@@ -121,7 +112,6 @@
         </div>
 
         {% if user %}
-        <!-- CHANGE HERE: pass the event to the handler -->
         <form class="pro-cart" method="post" action="{{ url_for('api_cart_add') }}" onsubmit="return addToCart(event, this);">
           <input type="hidden" name="product_id" value="{{ p.id }}">
           <label class="w-input">
@@ -144,7 +134,7 @@
   </section>
 </section>
 
-<!-- ===================== HOW IT WORKS (unchanged) ===================== -->
+<!-- ===================== HOW IT WORKS ===================== -->
 <section class="steps">
   <h2>How it works</h2>
   <ol class="steps-list">
@@ -172,7 +162,7 @@
   </ol>
 </section>
 
-<!-- ===================== TRUST STRIP (unchanged) ===================== -->
+<!-- ===================== TRUST STRIP ===================== -->
 <section class="trust">
   <div class="trust-inner">
     <div class="trust-item">⭐ 4.8/5 average store rating</div>
@@ -194,11 +184,10 @@
 html.page-enter{opacity:0; transform: translateY(8px)}
 html.page-enter.page-ready{opacity:1; transform:none; transition: opacity .5s var(--ease), transform .5s var(--ease)}
 
-/* ========= FULL-BLEED HERO ========= */
+/* ========= FULL-BLEED HERO (desktop/tablet) ========= */
 .hero-fw{
   position:relative; width:100vw; left:50%; right:50%;
-  margin-left:-50vw; margin-right:-50vw; /* full-bleed beyond container */
-  /* ⬇️ Increased height */
+  margin-left:-50vw; margin-right:-50vw;
   height: clamp(520px, 72vh, 820px);
   overflow:hidden; border-radius: 0 0 18px 18px;
   box-shadow: 0 14px 32px rgba(2,6,23,.18);
@@ -211,7 +200,8 @@ html.page-enter.page-ready{opacity:1; transform:none; transition: opacity .5s va
 }
 .hero-slide.is-active{opacity:1; transform: translateX(0)}
 .hero-slide img{
-  position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center;
+  position:absolute; inset:0; width:100%; height:100%;
+  object-fit:cover; object-position:center;
   filter: contrast(1.04) saturate(1.06) brightness(.9);
   transform: scale(1.03);
   transition: transform 6s linear;
@@ -224,14 +214,6 @@ html.page-enter.page-ready{opacity:1; transform:none; transition: opacity .5s va
   text-shadow: 0 2px 16px rgba(0,0,0,.45);
   animation: capIn .8s var(--ease) both;
 }
-.hero-caption h1{ font-size: clamp(26px, 4vw, 42px); margin: 0 0 6px }
-.hero-caption p{ margin: 0 0 14px; font-size: clamp(14px, 2vw, 18px); opacity:.95 }
-.btn{display:inline-flex;align-items:center;gap:8px;border-radius:12px;padding:10px 14px;font-weight:700;text-decoration:none;border:1px solid transparent}
-.btn-primary{background:#fff;color:#111;border-color:#e5e7eb}
-.btn-primary:hover{background:#f5f5f5}
-.btn-light{background:rgba(255,255,255,.12); color:#fff; border-color:rgba(255,255,255,.35)}
-.btn-light:hover{background:rgba(255,255,255,.18)}
-
 .hero-nav{
   position:absolute; top:50%; transform:translateY(-50%);
   width:42px;height:42px;border-radius:50%; border:none; cursor:pointer;
@@ -241,14 +223,42 @@ html.page-enter.page-ready{opacity:1; transform:none; transition: opacity .5s va
 .hero-nav:hover{background:rgba(0,0,0,.65)}
 .hero-nav.prev{left:14px}
 .hero-nav.next{right:14px}
-
 .hero-dots{position:absolute; left:0; right:0; bottom:12px; display:flex; gap:8px; justify-content:center; z-index:3}
 .hero-dots button{width:8px;height:8px;border-radius:999px;border:none;background:rgba(255,255,255,.45);cursor:pointer}
 .hero-dots button.is-active{background:#fff;width:20px;transition:width .25s var(--ease)}
 
 @keyframes capIn{from{opacity:0; transform: translateY(12px)} to{opacity:1; transform:none}}
 
-/* ========= VALUE / TRUST (as before) ========= */
+/* ========= MOBILE HERO (single image) ========= */
+/* ==== PERFECT MOBILE HERO FIXED SPACING ==== */
+.hero-mobile {
+  display: none;
+  position: relative;
+  width: calc(100vw - 6%);         /* equal 3% margin on both sides */
+  margin: 2vh auto 2.8vh;          /* smaller top space, balanced bottom */
+  border-radius: 14px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 8px 26px rgba(0,0,0,0.1);
+  height: clamp(400px, 60vh, 540px);
+}
+
+.hero-mobile img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: center;
+  border-radius: inherit;
+}
+
+/* Show only on mobile */
+@media (max-width: 640px) {
+  .hero-fw { display: none; }      /* hide desktop hero */
+  .hero-mobile { display: block; }
+}
+
+/* ========= VALUE / TRUST / PRODUCTS ========= */
 .value-strip{ margin: 16px 0 10px }
 .value-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px }
 .value-card{ background:#fff; border:1px solid #eee; border-radius:14px; padding:14px; box-shadow:var(--shadow) }
@@ -261,7 +271,6 @@ html.page-enter.page-ready{opacity:1; transform:none; transition: opacity .5s va
 
 .pro-grid{grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:16px}
 
-/* Staggered reveal on page open */
 .will-reveal{opacity:0; transform: translateY(16px) scale(.98)}
 .page-ready .will-reveal{animation: reveal .55s var(--ease) both}
 @keyframes reveal{ from{opacity:0; transform: translateY(16px) scale(.98)} to{opacity:1; transform:none} }
@@ -318,41 +327,20 @@ html.page-enter.page-ready{opacity:1; transform:none; transition: opacity .5s va
 .trust-inner{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px }
 .trust-item{ background:#fafafa; border:1px dashed #e8e8e8; border-radius:12px; padding:10px; text-align:center }
 
-/* ========= Responsive ========= */
+/* ========= Responsive visibility rules ========= */
 @media (max-width: 980px){
   .value-grid{ grid-template-columns:1fr 1fr }
   .trust-inner{ grid-template-columns:1fr }
 }
 @media (max-width: 640px){
-  .hero-nav.prev{left:8px} .hero-nav.next{right:8px}
-  .hero-dots{ bottom:10px }
+  .hero-fw{ display:none; }          /* hide slider on phones */
+  .hero-mobile{ display:block; }     /* show static hero on phones */
+
   .pro-ratings{ grid-template-columns:1fr; }
+  .hero-dots, .hero-nav{ display:none !important; } /* extra safety */
 }
 
-/* ======== MOBILE OPTIMIZATION FOR FULL-BLEED HERO (added, keeps desktop intact) ======== */
-@media (max-width: 480px){
-  .hero-fw{
-    height: clamp(360px, 58vh, 520px);        /* shorter on small screens */
-    border-radius: 0 0 12px 12px;             /* slightly smaller curve */
-  }
-  .hero-caption{
-    padding: 0 12px;                          /* tighter side padding */
-  }
-  .hero-nav{
-    width: 36px; height: 36px;                /* easier tap target */
-    background: rgba(0,0,0,.50);
-  }
-  .hero-dots{
-    bottom: 8px; gap: 10px;
-  }
-  .hero-dots button{
-    width: 10px; height: 10px;                /* bigger dot hit area */
-  }
-  .hero-dots button.is-active{
-    width: 22px;                              /* active pill size */
-  }
-}
-
+/* Motion preference */
 @media (prefers-reduced-motion: reduce){
   *{ animation: none !important; transition: none !important }
 }
@@ -365,10 +353,12 @@ window.addEventListener('load', () => {
   requestAnimationFrame(() => document.documentElement.classList.add('page-ready'));
 });
 
-/* ------------ FULL-BLEED HERO slider (autoplay + swipe/drag) ------------ */
+/* ------------ Slider JS (runs only when desktop hero exists) ------------ */
 (() => {
   const track = document.getElementById('heroTrack');
-  if (!track) return;
+  if (!track) return;                         // mobile page won't run this
+  if (window.matchMedia('(max-width: 640px)').matches) return; // extra guard
+
   const slides = Array.from(track.querySelectorAll('.hero-slide'));
   const dotsWrap = document.getElementById('heroDots');
   const prev = document.querySelector('.hero-nav.prev');
@@ -407,7 +397,7 @@ window.addEventListener('load', () => {
   track.addEventListener('mouseenter', stop);
   track.addEventListener('mouseleave', start);
 
-  // Touch / drag swipe
+  // Touch / drag swipe for desktop (optional)
   let sx = null, sy = null;
   function onStart(e){ const t = e.touches? e.touches[0] : e; sx = t.clientX; sy = t.clientY; }
   function onMove(e){
@@ -423,7 +413,7 @@ window.addEventListener('load', () => {
   setActive(i); start();
 })();
 
-/* ------------ Parallax-lite for value cards & steps (kept) ------------ */
+/* ------------ Parallax-lite for value cards & steps ------------ */
 (() => {
   const items = document.querySelectorAll('.plx');
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -444,9 +434,9 @@ window.addEventListener('load', () => {
   requestAnimationFrame(tick);
 })();
 
-/* ------------ AJAX add-to-cart (toast) — SUBMIT IS NOW PREVENTED ------------ */
+/* ------------ AJAX add-to-cart (toast) ------------ */
 function addToCart(e, form) {
-  if (e && e.preventDefault) e.preventDefault();        // <— hard stop default navigation
+  if (e && e.preventDefault) e.preventDefault();
   const btn = form.querySelector('.btn-buy');
   const btnOrig = btn ? btn.innerHTML : null;
   if (btn) { btn.disabled = true; btn.innerHTML = 'Adding…'; }
@@ -477,17 +467,11 @@ function addToCart(e, form) {
   fetch(form.action, {
     method: 'POST',
     body: fd,
-    headers: {
-      'Accept': 'application/json',
-      'X-Requested-With': 'XMLHttpRequest'
-    },
+    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
     credentials: 'same-origin'
   })
   .then(res => {
-    if (res.redirected) {
-      window.location.assign(res.url);
-      return null;
-    }
+    if (res.redirected) { window.location.assign(res.url); return null; }
     const ct = res.headers.get('content-type') || '';
     if (ct.includes('application/json')) return res.json();
     return res.text().then(() => ({ ok: res.ok }));
@@ -506,7 +490,7 @@ function addToCart(e, form) {
     if (btn) { btn.disabled = false; btn.innerHTML = btnOrig; }
   });
 
-  return false; // <— return false synchronously so the form never navigates
+  return false;
 }
 </script>
 
