@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="orders-container">
+  <div class="orders-header">
+    <h2>My Orders</h2>
+    <p class="orders-subtitle">View and track your order history</p>
+  </div>
+
+  <!-- Desktop / Tablet table -->
+  <div class="table-responsive desktop-only">
+    <table class="table orders-table">
+      <thead>
+        <tr>
+          <th scope="col">Order #</th>
+          <th scope="col">Store</th>
+          <th scope="col">Total (₹)</th>
+          <th scope="col">Status</th>
+          <th scope="col">Payment</th>
+          <th scope="col">Placed</th>
+          <th scope="col">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for o in orders %}
+        <tr class="order-row">
+          <td class="order-id">#{{ o.id }}</td>
+          <td class="store-name">{{ o.store_name }}</td>
+          <td class="order-total">₹{{ '%.2f'|format(o.total_amount) }}</td>
+          <td class="order-status">
+            <span class="status-badge status-{{ o.status|lower|replace(' ', '-')|replace('_','-') }}">
+              {{ o.status.replace('_',' ') }}
+            </span>
+          </td>
+          <td class="payment-status">
+            <span class="payment-badge payment-{{ o.payment_status|lower|replace(' ', '-')|replace('_','-') }}">
+              {{ o.payment_status }}
+            </span>
+          </td>
+          <td class="order-date">{{ o.created_at }}</td>
+          <td class="order-actions">
+            <a class="btn-track" href="{{ url_for('order_track', oid=o.id) }}">
+              <span>Track Order</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
+              </svg>
+            </a>
+
+            {% if o.status in ['PLACED', 'CONFIRMED'] %}
+            <form method="post" action="{{ url_for('order_cancel', oid=o.id) }}" style="display:inline" onsubmit="return confirm('Cancel this order?');">
+              <button class="btn-cancel" type="submit">Cancel</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Mobile cards -->
+  <div class="orders-cards mobile-only">
+    {% for o in orders %}
+    <article class="order-card">
+      <div class="card-head">
+        <div class="left">
+          <div class="oid">#{{ o.id }}</div>
+          <div class="store">{{ o.store_name }}</div>
+        </div>
+        <div class="right">
+          <span class="status-badge status-{{ o.status|lower|replace(' ', '-')|replace('_','-') }}">
+            {{ o.status.replace('_',' ') }}
+          </span>
+        </div>
+      </div>
+
+      <div class="card-body">
+        <div class="row">
+          <span class="label">Total</span>
+          <span class="value strong">₹{{ '%.2f'|format(o.total_amount) }}</span>
+        </div>
+        <div class="row">
+          <span class="label">Payment</span>
+          <span class="value">
+            <span class="payment-badge payment-{{ o.payment_status|lower|replace(' ', '-')|replace('_','-') }}">
+              {{ o.payment_status }}
+            </span>
+          </span>
+        </div>
+        <div class="row">
+          <span class="label">Placed</span>
+          <span class="value muted">{{ o.created_at }}</span>
+        </div>
+      </div>
+
+      <div class="card-actions">
+        <a class="btn-track full" href="{{ url_for('order_track', oid=o.id) }}">
+          <span>Track Order</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M5 12h14M12 5l7 7-7 7"/>
+          </svg>
+        </a>
+
+        {% if o.status in ['PLACED', 'CONFIRMED'] %}
+        <form method="post" action="{{ url_for('order_cancel', oid=o.id) }}" onsubmit="return confirm('Cancel this order?');" style="margin-top:8px;">
+          <button class="btn-cancel full" type="submit">Cancel Order</button>
+        </form>
+        {% endif %}
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+
+  {% if not orders %}
+  <div class="empty-state">
+    <div class="empty-icon">
+      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+        <line x1="3" y1="6" x2="21" y2="6"></line>
+        <path d="M16 10a4 4 0 0 1-8 0"></path>
+      </svg>
+    </div>
+    <h3>No orders yet</h3>
+    <p>You haven't placed any orders. Start shopping to see your orders here.</p>
+  </div>
+  {% endif %}
+</div>
+
+<style>
+/* Container */
+.orders-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+/* Header */
+.orders-header {
+  margin-bottom: 1.25rem;
+  text-align: center;
+  animation: fadeIn .3s ease both;
+}
+.orders-header h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin-bottom: .4rem;
+}
+.orders-subtitle { color:#718096 }
+
+/* Table (desktop) */
+.table-responsive {
+  overflow-x: auto;
+  border-radius: 10px;
+  box-shadow: 0 1px 6px rgba(0,0,0,.06);
+  background: #fff;
+}
+.orders-table { width: 100%; border-collapse: collapse; }
+.orders-table thead { background: #f7fafc; border-bottom: 2px solid #e2e8f0; }
+.orders-table th {
+  padding: 1rem;
+  font-weight: 700;
+  color: #4a5568;
+  text-align: left;
+  font-size: .85rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.orders-table td {
+  padding: 1rem;
+  border-bottom: 1px solid #e2e8f0;
+  color: #2d3748;
+  vertical-align: top;
+}
+.order-row { transition: background .15s ease, transform .12s ease; }
+.order-row:hover { background: #f9fafb; transform: translateY(-1px); }
+
+.order-id { font-weight: 700; color: #2b6cb0; white-space: nowrap; }
+.store-name { font-weight: 600; color:#1f2937 }
+.order-total { font-weight: 700; color: #111827 }
+.order-date { color:#718096; font-size:.9rem }
+
+.status-badge, .payment-badge {
+  display:inline-block;
+  padding: .28rem .65rem;
+  border-radius: 999px;
+  font-size: .75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Status variations */
+.status-placed          { background:#e6f6ff; color:#0c4a6e }
+.status-confirmed       { background:#dbeafe; color:#1e40af }
+.status-out-for-delivery{ background:#fce7f3; color:#9d174d }
+.status-delivered       { background:#dcfce7; color:#166534 }
+.status-cancelled       { background:#fee2e2; color:#991b1b }
+.status-processing      { background:#e5e7eb; color:#374151 }
+.status-completed       { background:#dcfce7; color:#166534 }
+.status-shipped         { background:#ede9fe; color:#5b21b6 }
+
+/* Payment variations */
+.payment-paid       { background:#dcfce7; color:#166534 }
+.payment-pending    { background:#fef9c3; color:#a16207 }
+.payment-failed     { background:#fee2e2; color:#991b1b }
+.payment-processing { background:#e5e7eb; color:#374151 }
+
+/* Mobile cards */
+.orders-cards { display: grid; gap: 12px; }
+.order-card {
+  border:1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 6px 16px rgba(2,6,23,.06);
+  overflow: hidden;
+  animation: liftIn .25s ease both;
+}
+.order-card .card-head {
+  display:flex; align-items:flex-start; justify-content:space-between;
+  padding: 12px 12px 6px 12px;
+  border-bottom: 1px dashed #eef0f3;
+}
+.order-card .left .oid { font-weight:800; color:#1f2937 }
+.order-card .left .store { color:#4b5563; font-weight:600; margin-top:2px }
+.order-card .card-body { padding: 8px 12px; display:grid; gap:8px }
+.order-card .row { display:flex; justify-content:space-between; align-items:center; gap:10px }
+.order-card .label { color:#6b7280; font-size:.9rem }
+.order-card .value { color:#111827; }
+.order-card .value.strong { font-weight:800 }
+.order-card .card-actions { padding: 10px 12px 12px; }
+
+.btn-track {
+  display:inline-flex; align-items:center; gap:.5rem;
+  padding:.55rem .9rem; background:#2b6cb0; color:#fff; text-decoration:none;
+  border-radius:8px; font-size:.9rem; font-weight:600;
+  transition: transform .12s ease, box-shadow .2s ease, background .2s ease;
+}
+.btn-track svg { stroke-width: 2; }
+.btn-track:hover { background:#2c5282; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,.12); }
+.btn-track.full { display:flex; justify-content:center; width:100% }
+
+/* ---- New Cancel Button ---- */
+.btn-cancel {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:.4rem;
+  padding:.5rem .9rem;
+  background:#ef4444;
+  color:#fff;
+  border:none;
+  border-radius:8px;
+  font-size:.85rem;
+  font-weight:600;
+  cursor:pointer;
+  transition:filter .2s ease, transform .12s ease;
+}
+.btn-cancel:hover { filter:brightness(.95); transform:translateY(-1px); }
+.btn-cancel.full { width:100%; text-align:center; }
+
+/* Empty */
+.empty-state { text-align:center; padding: 3rem 1rem; color:#718096 }
+.empty-icon { margin-bottom:.75rem; color:#cbd5e0 }
+.empty-state h3 { font-size:1.2rem; color:#4a5568; margin-bottom:.35rem }
+
+/* Visibility helpers */
+.desktop-only { display:block; }
+.mobile-only { display:none; }
+
+/* Responsive */
+@media (max-width: 992px){
+  .orders-container { padding: 1.5rem 1rem; }
+}
+@media (max-width: 768px){
+  .desktop-only { display:none; }
+  .mobile-only { display:grid; }
+  .orders-header h2 { font-size:1.6rem; }
+}
+
+/* Animations */
+@keyframes fadeIn{ from{opacity:0; transform: translateY(6px)} to{opacity:1; transform:none} }
+@keyframes liftIn{ from{opacity:.0; transform: scale(.98)} to{opacity:1; transform:none} }
+@media (prefers-reduced-motion: reduce){
+  * { animation:none !important; transition:none !important; }
+}
+</style>
+{% endblock %}

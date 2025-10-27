@@ -1,0 +1,261 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="checkout-section" style="max-width:600px;margin:auto;padding:20px;">
+  <h2>Checkout</h2>
+
+  <p><strong>Items Total (COD): ₹{{ '%.2f'|format(total) }}</strong></p>
+
+  <form method="post" id="checkout-form">
+    <!-- Tip Input -->
+    <label style="display:block;margin:10px 0;">
+      Tip for Rider (optional):
+      <input
+        name="tip_amount"
+        type="number"
+        step="1"
+        min="0"
+        placeholder="e.g. 10"
+        style="width:120px;margin-left:8px;"
+      >
+    </label>
+
+    <!-- Delivery Fee Estimate -->
+    <p id="fee-preview" style="color:#555;margin:6px 0;">
+      Estimated Delivery Fee: <strong>₹{{ base_fee or 40 }}</strong>
+    </p>
+
+    <!-- Address Selection -->
+    <h3 style="margin-top:20px;">Select Delivery Address</h3>
+    {% if addresses %}
+      <div class="card" style="padding:12px;border:1px solid #e5e7eb;border-radius:10px;">
+        {% for a in addresses %}
+          <label style="display:flex;gap:8px;align-items:flex-start;margin:8px 0;">
+            <input
+              type="radio"
+              name="address_id"
+              value="{{ a.id }}"
+              {% if loop.first or a.is_default %}checked{% endif %}
+              data-lat="{{ a.latitude or '' }}"
+              data-lng="{{ a.longitude or '' }}"
+            >
+            <div>
+              <div>
+                <strong>{{ a.label or 'Address' }}</strong>
+                {% if a.is_default %}
+                  <span class="tag" style="background:#e2fbe2;color:#16a34a;padding:2px 6px;border-radius:6px;font-size:12px;">Default</span>
+                {% endif %}
+              </div>
+              <div>{{ a.line1 }}{% if a.line2 %}, {{ a.line2 }}{% endif %}</div>
+              <div>{{ a.city }}, {{ a.state }} {{ a.pincode }}</div>
+              {% if a.latitude and a.longitude %}
+                <div class="muted" style="font-size:12px;color:#6b7280;">
+                  Lat: {{ a.latitude }}, Lng: {{ a.longitude }}
+                </div>
+              {% endif %}
+            </div>
+          </label>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="muted">You have no saved addresses.
+        <a href="{{ url_for('profile') }}">Add one in Profile</a>.
+      </p>
+    {% endif %}
+
+    <!-- Total Summary -->
+    <p id="total-preview" style="margin-top:12px;">
+      <strong>Total Payable (approx.): ₹{{ '%.2f'|format(total + (base_fee or 40)) }}</strong>
+    </p>
+
+    <button class="btn" type="submit"
+      {% if not addresses %}disabled{% endif %}
+      style="margin-top:10px;width:100%;padding:10px;background:#16a34a;color:#fff;border:none;border-radius:8px;cursor:pointer;">
+      Place Order (Cash on Delivery)
+    </button>
+  </form>
+</section>
+
+<!-- Simple script to update total when tip changes -->
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const tipInput = document.querySelector('input[name="tip_amount"]');
+  const totalBase = {{ total }};
+  const baseFee = {{ base_fee or 40 }};
+  const totalPreview = document.getElementById('total-preview');
+
+  function updateTotal() {
+    const tip = parseFloat(tipInput.value || 0);
+    const total = totalBase + baseFee + tip;
+    totalPreview.innerHTML = `<strong>Total Payable (approx.): ₹${total.toFixed(2)}</strong>`;
+  }
+
+  tipInput.addEventListener('input', updateTotal);
+});
+</script>
+
+<style>
+/* =========================
+   VISUAL REDESIGN ONLY
+   (No markup changes)
+   ========================= */
+:root{
+  --bg:#f1f5f9;
+  --paper:#ffffff;
+  --ink:#0f172a;
+  --muted:#64748b;
+  --line:#e5e7eb;
+  --brand:#16a34a;
+  --brand-2:#0ea5e9;
+  --radius:14px;
+  --shadow:0 14px 32px rgba(2,6,23,.08);
+}
+
+/* Make the whole section a two-column layout on desktop */
+.checkout-section{
+  /* ignore inline width; we upgrade layout here */
+  max-width:1200px !important;
+  margin:auto !important;
+  padding:24px 16px 48px !important;
+  background:var(--bg);
+  display:grid;
+  grid-template-columns: 1fr 360px;
+  gap:24px;
+  align-items:start;
+}
+
+/* Typography polish */
+.checkout-section > h2{
+  grid-column:1;
+  font-size:1.6rem;
+  font-weight:800;
+  color:var(--ink);
+  margin:0 0 6px 0;
+}
+
+/* This is your “Items Total (COD)” line. We style it as part of right panel */
+.checkout-section > p{
+  grid-column:2;
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  padding:14px 16px;
+  box-shadow:var(--shadow);
+  margin:0;
+  font-weight:600;
+  color:var(--ink);
+}
+
+/* The original form becomes “display: contents” so its children can be placed
+   directly into the grid without changing HTML. */
+#checkout-form{ display: contents; }
+
+/* Tip label + input row → left column */
+#checkout-form > label[for="tip_amount"], 
+#checkout-form > label:nth-of-type(1){
+  grid-column:1;
+}
+
+/* Estimate fee → right column, styled as a card section */
+#fee-preview{
+  grid-column:2;
+  background:var(--paper);
+  border:1px dashed var(--line);
+  border-radius:var(--radius);
+  padding:12px 14px;
+  box-shadow:0 8px 20px rgba(2,6,23,.05);
+  color:#334155 !important;
+  margin:0;
+}
+
+/* Address title + card → left column, card look */
+#checkout-form > h3{
+  grid-column:1;
+  margin:10px 0 8px 0 !important;
+  color:var(--ink);
+  font-size:1.1rem;
+}
+#checkout-form > .card{
+  grid-column:1;
+  background:var(--paper) !important;
+  border:1px solid var(--line) !important;
+  border-radius:var(--radius) !important;
+  padding:14px !important;
+  box-shadow:var(--shadow);
+}
+
+/* Radio rows inside address card */
+#checkout-form > .card > label{
+  border:1px dashed var(--line) !important;
+  border-radius:10px !important;
+  padding:10px !important;
+  background:#fafafa !important;
+}
+
+/* Empty state paragraph (no addresses) → left column */
+#checkout-form > p.muted{
+  grid-column:1;
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  padding:12px 14px;
+  box-shadow:var(--shadow);
+}
+
+/* Total preview → right column, sticky card at the bottom of summary */
+#total-preview{
+  grid-column:2;
+  position:sticky;
+  top:16px;
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  padding:14px 16px;
+  box-shadow:var(--shadow);
+  margin:0;
+}
+#total-preview strong{
+  display:flex;align-items:center;justify-content:space-between;
+}
+#total-preview strong::before{
+  content:"TO PAY";
+  font-weight:800;
+  color:#0f172a;
+}
+
+/* Submit button → full-width below left column content */
+#checkout-form > .btn{
+  grid-column:1;
+  background:linear-gradient(90deg,var(--brand-2),var(--brand)) !important;
+  border-radius:12px !important;
+  padding:.9rem 1.2rem !important;
+  box-shadow:0 12px 28px rgba(22,163,74,.25) !important;
+  transition:transform .12s ease, box-shadow .2s ease !important;
+}
+#checkout-form > .btn:hover{ transform:translateY(-1px); box-shadow:0 16px 32px rgba(22,163,74,.33) !important; }
+#checkout-form > .btn[disabled]{ opacity:.6; cursor:not-allowed; }
+
+/* Fine-tuning default inline styles you already had */
+.card .tag{ border:1px solid #bbf7d0; }
+
+/* Mobile: collapse to one column and keep everything readable */
+@media (max-width: 980px){
+  .checkout-section{
+    grid-template-columns: 1fr;
+    gap:14px;
+    padding:18px 12px 28px !important;
+  }
+  .checkout-section > p,
+  #fee-preview,
+  #total-preview{
+    grid-column:1 !important;
+    position:static;
+  }
+  #checkout-form > .btn{ grid-column:1 !important; width:100% !important; }
+}
+
+/* Subtle page polish */
+.checkout-section > *{
+  font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+}
+</style>
+{% endblock %}

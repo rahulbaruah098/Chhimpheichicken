@@ -1,0 +1,809 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Chhimphei Chicken</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <script src="https://cdn.lordicon.com/lordicon.js"></script>
+
+  <style>
+    :root{
+      --brand:#0f172a;
+      --muted:#6b7280;
+      --line:#e5e7eb;
+
+      /* footer theme (unchanged) */
+      --panel-bg:#ffd07d;
+      --panel-border:#d6aa61;
+      --panel-shadow:0 10px 20px rgba(15,23,42,.08);
+
+      /* nav glow */
+      --nav-glow: rgba(214,170,97,.35);
+
+      /* accents */
+      --ok:#16a34a;
+      --warn:#dc2626;
+      --info:#2563eb;
+
+      /* overlay artistic */
+      --glass-bg: rgba(255,255,255,.72);
+      --glass-border: rgba(255,255,255,.5);
+      --overlay-grad: radial-gradient(90% 100% at 0% 0%, #fff7e7 0%, #f1f5ff 35%, #f9f9ff 70%, #ffffff 100%);
+      --ink:#0b1020;
+    }
+
+    html,body{margin:0}
+    body{background:#fff;color:var(--brand);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+    a{color:inherit;text-decoration:none}
+    .muted{color:var(--muted)}
+    .container{max-width:1080px;margin:0 auto;padding:16px}
+
+    /* ================= NAV (white + glow) ================= */
+    .header-strip{
+      position:sticky;top:0;z-index:1000;background:#fff;box-shadow:0 1px 0 rgba(0,0,0,.04);
+    }
+    .nav-shell{max-width:1280px;margin:0 auto;padding:10px 12px;transition:max-width .28s ease}
+    .nav-shell.nav-wide{max-width:1420px}
+    @media (min-width:1600px){
+      .nav-shell{max-width:1360px}
+      .nav-shell.nav-wide{max-width:1520px}
+    }
+
+    .nav-bar{
+      background:#fff;border:1px solid var(--panel-border);border-radius:16px;padding:10px 12px;
+      display:flex;align-items:center;justify-content:space-between;gap:12px;
+      box-shadow:0 0 0 1px var(--panel-border) inset,0 8px 18px rgba(15,23,42,.06),0 0 12px var(--nav-glow);
+      animation:navGlow 2.4s ease-in-out infinite;
+    }
+    @keyframes navGlow{
+      0%,100%{box-shadow:0 0 0 1px var(--panel-border) inset,0 8px 18px rgba(15,23,42,.06),0 0 8px var(--nav-glow)}
+      50%{box-shadow:0 0 0 1px var(--panel-border) inset,0 12px 26px rgba(15,23,42,.08),0 0 16px var(--nav-glow)}
+    }
+
+    .brand{display:flex;align-items:center;gap:10px;min-width:0}
+    .brand img.brand-logo{width:26px;height:26px;object-fit:contain;display:block}
+    .brand .brand-name{font-weight:700;white-space:nowrap}
+
+    .nav-left{display:flex;align-items:center;gap:10px;min-width:0}
+    /* 👉 Right side now flexes and keeps order: Location → Search → Logout */
+    .nav-right{display:flex;align-items:center;gap:10px;flex:1;justify-content:flex-end;min-width:0}
+
+    .nav-links{
+      display:flex;align-items:center;gap:6px;margin-left:10px;
+      border:1px solid var(--line);background:#fafafa;border-radius:12px;padding:4px;
+    }
+    .nav-links a{padding:6px 10px;border-radius:10px;line-height:1;border:1px solid transparent;white-space:nowrap}
+    .nav-links a:hover{background:#fff;border-color:#eef0f3}
+    .nav-links a.active{background:#f0f1f5;border-color:#e6e8ee;box-shadow:inset 0 -2px 0 rgba(0,0,0,.03)}
+
+    .right-links{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;justify-content:flex-end;}
+    .btn-cta{background:#e9ddff;border:1px solid #b9aaf2;color:#3b2b8f;padding:8px 12px;border-radius:12px;font-weight:600;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 12px rgba(34,0,255,.08)}
+    .btn-ghost{background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+
+    /* ============ Hamburger (mobile only) ============ */
+    .hamburger{
+      display:none;align-items:center;justify-content:center;width:44px;height:38px;
+      border:1px solid var(--panel-border);background:#fff;border-radius:12px;
+      box-shadow:0 6px 14px rgba(2,6,23,.06),0 0 10px var(--nav-glow);
+      transition:transform .12s ease, box-shadow .2s ease;
+    }
+    .hamburger:hover{transform:translateY(-1px)}
+    .hamburger .bars{position:relative;width:22px;height:16px}
+    .hamburger .bar{position:absolute;left:0;right:0;height:2px;border-radius:2px;background:#111;transition:transform .25s ease,opacity .2s ease,top .25s ease,bottom .25s ease}
+    .hamburger .bar:nth-child(1){top:0}
+    .hamburger .bar:nth-child(2){top:7px}
+    .hamburger .bar:nth-child(3){bottom:0}
+    .hamburger.active .bar:nth-child(1){top:7px;transform:rotate(45deg)}
+    .hamburger.active .bar:nth-child(2){opacity:0}
+    .hamburger.active .bar:nth-child(3){bottom:7px;transform:rotate(-45deg)}
+
+    /* ============ Artistic Mobile menu (slide-in) ============ */
+    .overlay{
+      position:fixed;inset:0;background:linear-gradient(180deg, rgba(0,0,0,.35), rgba(0,0,0,.15));
+      display:flex;justify-content:flex-end;z-index:1200;transition:opacity .25s ease;
+    }
+    .overlay[hidden]{display:block;opacity:0;pointer-events:none}
+    .overlay.open .overlay-menu{transform:translateX(0)}
+
+    .overlay-menu{
+      width:min(92vw,420px);height:100%;
+      background: var(--overlay-grad);
+      position:relative;
+      transform:translateX(100%);
+      transition:transform .32s cubic-bezier(.2,.9,.3,1.2);
+      padding:18px 16px 18px 16px;
+      display:flex;flex-direction:column;gap:14px;
+      box-shadow: -14px 0 34px rgba(0,0,0,.18);
+      overflow:auto;
+    }
+
+    .overlay-glass{
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius:16px; padding:14px 12px;
+      box-shadow: 0 10px 30px rgba(16,24,40,.12);
+      backdrop-filter: blur(10px) saturate(140%);
+    }
+
+    .overlay-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+    .overlay-title{font-weight:800;letter-spacing:.02em}
+    .close-btn{border:1px solid var(--line);border-radius:10px;background:#fff;padding:8px 10px}
+
+    .overlay-divider{border-top:1px dashed #d4d7df;margin:6px 0}
+
+    .overlay-links{display:grid;gap:8px}
+    .link-card{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:12px 14px;border-radius:14px;border:1px solid #eaeef6;background:#ffffffcc;
+      box-shadow: 0 6px 18px rgba(30,41,59,.08);
+      transition: transform .18s ease, box-shadow .2s ease, background .2s ease;
+    }
+    .link-card:hover{ transform:translateY(-2px); box-shadow:0 12px 26px rgba(30,41,59,.12); background:#fff; }
+    .link-card .meta{display:flex;align-items:center;gap:10px}
+    .link-card .badge{font-size:.72rem;padding:2px 6px;border-radius:999px;background:#eef2ff;border:1px solid #dbe1ff;color:#3743a5}
+
+    .overlay-search{
+      display:flex;gap:8px;align-items:center;
+      background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:10px 12px;
+      box-shadow: 0 8px 22px rgba(0,0,0,.06);
+    }
+    .overlay-search input{
+      border:none;outline:none;background:transparent;flex:1;font-size:1rem;color:var(--ink);
+    }
+    .overlay-search button{border:none;background:#111;color:#fff;border-radius:10px;padding:8px 12px}
+
+    /* ========== Desktop navbar search ========== */
+    .nav-search{
+      position:relative;display:flex;align-items:center;gap:6px;border:1px solid var(--line);
+      background:#fafafa;border-radius:12px;padding:6px 8px;width:42px;overflow:hidden;
+      transition:width .28s ease, background .28s ease, box-shadow .28s ease;
+    }
+    .nav-search input{
+      width:0; opacity:0;border:none; outline:none; background:transparent;
+      font-size:.95rem; color:var(--brand);transition:width .28s ease, opacity .2s ease;
+    }
+    .nav-search button{border:none;background:transparent;padding:0;cursor:pointer;display:grid;place-items:center;}
+    .nav-search svg{width:18px;height:18px;fill:#111;transition:transform .2s ease;}
+    .nav-search:hover svg{transform:scale(1.06);}
+    .nav-search:hover, .nav-search:focus-within{ width:240px; background:#fff; box-shadow:0 0 0 2px rgba(37,99,235,.12); }
+    .nav-search:hover input, .nav-search:focus-within input{ width:190px; opacity:1; }
+    .nav-shell.nav-wide .nav-search:hover, .nav-shell.nav-wide .nav-search:focus-within{ width:280px; }
+    .nav-shell.nav-wide .nav-search:hover input, .nav-shell.nav-wide .nav-search:focus-within input{ width:230px; }
+    @media (max-width: 900px){ .nav-search{display:none} }
+
+    /* ========== Location components ========== */
+    .loc-chip{
+      display:flex;align-items:center;gap:8px;border:1px solid #e5e7eb;border-radius:999px;background:#fff;padding:8px 12px;
+      box-shadow:0 4px 12px rgba(2,6,23,.04); cursor:pointer;
+      max-width:380px;
+    }
+    .loc-chip .pin{width:16px;height:16px}
+    .loc-chip .addr{max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .loc-badge{
+      font-size:.74rem;padding:2px 8px;border:1px solid #e5e7eb;border-radius:999px;background:#fafafa;
+    }
+    .loc-badge.ok{border-color:#bbf7d0;background:#ecfdf5;color:var(--ok)}
+    .loc-badge.no{border-color:#fecaca;background:#fef2f2;color:var(--warn)}
+
+    /* Desktop: show nav chip, hide strip */
+    .nav-loc{display:flex;align-items:center;gap:8px}
+    .nav-loc .loc-chip{display:flex}
+    .loc-strip{display:none}
+
+    /* Mobile: hide nav chip, show strip under nav */
+    @media (max-width: 900px){
+      .nav-loc{display:none}
+      .loc-strip{display:block;background:#f8fafc;border-bottom:1px solid var(--line);}
+      .loc-strip-inner{
+        max-width:1280px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+      }
+      .loc-strip .addr{max-width:56vw}
+      .loc-strip .loc-actions{display:flex;gap:8px;margin-left:auto}
+      .btn-small{border:1px solid #e5e7eb;background:#fff;border-radius:10px;padding:8px 10px;cursor:pointer;}
+    }
+
+    /* Flash */
+    .flash-wrap{position:relative;margin:8px auto;max-width:1080px;padding:0 16px;display:grid;gap:6px}
+    .flash{padding:10px 12px;border-radius:10px;border:1px solid transparent}
+    .flash.success{background:#e6fbef;color:#0b8f3a;border-color:#b7f0cd}
+    .flash.warning{background:#fff7e6;color:#92400e;border-color:#ffe1a8}
+    .flash.danger{background:#fee2e2;color:#991b1b;border-color:#f7b4b4}
+    .flash.info{background:#e6f0ff;color:#1e40af;border-color:#c7dbff}
+
+    /* Footer (unchanged) */
+    .footer-strip{margin-top:40px;background:var(--panel-bg);border-top:1px solid var(--panel-border);box-shadow:inset 0 1px 0 rgba(0,0,0,.04)}
+    .footer-inner{max-width:1200px;margin:0 auto;padding:28px 16px}
+    .footer-panel{background:#efe2c1;border:1px solid var(--panel-border);border-radius:16px;box-shadow:var(--panel-shadow);padding:28px 20px}
+    .footer-grid{display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr;gap:22px;align-items:start}
+    .footer-logo-wrap{display:flex;align-items:center;justify-content:center}
+    .footer-logo{display:flex;flex-direction:column;align-items:center;gap:6px}
+    .footer-logo img{max-width:160px;height:auto;display:block;filter:drop-shadow(0 4px 10px rgba(0,0,0,.07))}
+    .footer-section .title{font-weight:700;margin-bottom:6px;letter-spacing:.02em}
+    .footer-links{display:grid;gap:6px}
+    .footer-links a{padding:2px 0}
+    .footer-links a:hover{text-decoration:underline}
+    .newsletter{display:flex;gap:8px;margin-top:8px}
+    .newsletter input{flex:1;padding:8px 10px;border:1px solid var(--panel-border);border-radius:10px;background:#fff}
+    .newsletter button{padding:8px 12px;border:1px solid var(--panel-border);border-radius:10px;background:#0f172a;color:#fff}
+    .socials{display:flex;gap:10px;margin-top:10px}
+    .socials svg{width:20px;height:20px;fill:#111}
+    .copy{text-align:center;color:#3b3b3b;padding:12px}
+
+    /* Responsive hiding of inline nav links & desktop utilities */
+    @media (max-width: 900px){
+      .nav-links{display:none}
+      .right-links{display:none}
+      .hamburger{display:flex}
+      .brand-name{font-size:1rem}
+      .brand{gap:8px}
+      .footer-grid{grid-template-columns:1fr 1fr}
+      .footer-logo-wrap{grid-column:1/-1;order:-1;margin-bottom:10px}
+    }
+    @media (max-width: 560px){
+      .footer-grid{grid-template-columns:1fr}
+    }
+
+    /* ========== Location Modal ========== */
+    .loc-modal[hidden]{ display:none; }
+    .loc-modal{
+      position:fixed; inset:0; z-index:1400; display:grid; place-items:center;
+      background:rgba(2,6,23,.45); backdrop-filter:saturate(120%) blur(2px);
+      animation:fadeIn .18s ease;
+    }
+    @keyframes fadeIn{ from{opacity:0} to{opacity:1} }
+    .loc-card{
+      width:min(560px, 92vw); background:#fff; border:1px solid #e5e7eb; border-radius:14px;
+      box-shadow:0 24px 60px rgba(0,0,0,.18); overflow:hidden;
+    }
+    .loc-head{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid #eef0f3;background:#fafafa}
+    .loc-body{padding:16px; display:grid; gap:14px;}
+    .loc-foot{padding:12px 16px; border-top:1px solid #eef0f3; display:flex; gap:8px; justify-content:flex-end;}
+    .loc-title{font-weight:700}
+    .loc-close{border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px 10px;cursor:pointer}
+    .loc-row{display:grid; gap:8px}
+    .loc-actions{display:flex; gap:8px; flex-wrap:wrap}
+    .btn{ padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:#111; color:#fff; cursor:pointer; }
+    .btn-ghost{ background:#fff; color:#111 }
+    .btn-icon{ display:inline-flex; align-items:center; gap:8px }
+    .input{ width:100%; padding:12px; border:1px solid #e5e7eb; border-radius:10px; background:#fff; font-size:1rem; }
+    .hint{ color:#6b7280; font-size:.9rem }
+    .status{ font-size:.9rem }
+    .status.ok{ color:var(--ok) }
+    .status.no{ color:var(--warn) }
+    .small{ font-size:.85rem; color:#475569 }
+  </style>
+</head>
+
+<body {% if user %}data-role="{{ user.role }}"{% endif %}>
+
+<!-- ================= NAV ================= --> 
+<header class="header-strip">
+  <div class="nav-shell" id="navShell">
+    <div class="nav-bar">
+      <!-- Left: Brand + inline links (desktop) -->
+      <div class="nav-left">
+        <div class="brand">
+          <img class="brand-logo" src="{{ url_for('static', filename='logo.png') }}" alt="Logo">
+          <a href="{{ url_for('index') }}" class="brand-name">CHHIMPHEI CHICKEN</a>
+        </div>
+
+        <nav class="nav-links" aria-label="Primary">
+          <a class="btn-cta" href="{{ url_for('products') }}" class="{% if request.endpoint=='products' %}active{% endif %}">🍗Products</a>
+          {% if user %}
+            {% if user.role == 'admin' %}<a href="{{ url_for('admin_dashboard') }}">Admin</a>{% endif %}
+            {% if user.role == 'store' %}<a href="{{ url_for('store_dashboard') }}">Store</a>{% endif %}
+            {% if user.role == 'delivery' %}<a href="{{ url_for('delivery_dashboard') }}">Delivery</a>{% endif %}
+            <a href="{{ url_for('orders') }}">My Orders</a>
+            <a href="{{ url_for('cart_page') }}">Cart</a>
+            <a href="{{ url_for('profile') }}">Account</a>
+          {% else %}
+            <a href="{{ url_for('login') }}" class="{% if request.endpoint=='login' %}active{% endif %}">Login</a>
+            <a href="{{ url_for('register') }}">Sign up</a>
+          {% endif %}
+        </nav>
+      </div>
+
+      <!-- Right: ✅ Location → Search → Logout (desktop) | Hamburger (mobile) -->
+      <div class="nav-right">
+        <!-- 1) Desktop location chip -->
+        <div class="nav-loc">
+          <button id="navLocChip" class="loc-chip" type="button" aria-label="Set delivery location">
+            <svg class="pin" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>
+            <span class="addr" id="navLocAddr">Set your location</span>
+            <span class="loc-badge" id="navLocBadge" hidden>—</span>
+          </button>
+        </div>
+
+        <!-- 2) Desktop search -->
+        <form class="nav-search" action="{{ url_for('search') }}" method="get" role="search" aria-label="Site search">
+          <button type="submit" aria-label="Search">
+            <svg viewBox="0 0 24 24"><path d="M10 2a8 8 0 1 1-5.3 13.7l-4 4a1 1 0 1 1-1.4-1.4l4-4A8 8 0 0 1 10 2zm0 2a6 6 0 1 0 0 12 6 6 0 0 0 0-12z"/></svg>
+          </button>
+          <input type="search" name="q" placeholder="Search products or stores…" autocomplete="off">
+        </form>
+
+        <!-- 3) Desktop utilities (logout) -->
+        <div class="right-links">
+          {% if user %}<a class="btn-ghost" href="{{ url_for('logout') }}" id="logoutLink">Logout</a>{% endif %}
+        </div>
+
+        <!-- Mobile hamburger -->
+        <button class="hamburger" id="hamburger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu" type="button">
+          <div class="bars">
+            <span class="bar"></span><span class="bar"></span><span class="bar"></span>
+          </div>
+        </button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ✅ Mobile-only Location Strip (below navbar) -->
+<div class="loc-strip" id="locStrip">
+  <div class="loc-strip-inner">
+    <div class="loc-chip" title="Your delivery location" id="stripChip">
+      <svg class="pin" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>
+      <span class="addr" id="locStripAddr">Set your location</span>
+      <span class="loc-badge" id="locStripBadge" hidden>—</span>
+    </div>
+    <div class="muted">PIN: <span id="locStripPin">—</span></div>
+    <div class="loc-actions">
+      <button class="btn-small" id="locStripChange" type="button">Change</button>
+      <button class="btn-small" id="locStripUseGeo" type="button">Use My Location</button>
+      <button class="btn-small" id="locStripClear" type="button">Clear</button>
+    </div>
+  </div>
+</div>
+
+<!-- Artistic Slide-in mobile menu -->
+<div class="overlay" id="overlay" hidden>
+  <div class="overlay-menu" id="mobileMenu" role="dialog" aria-modal="true" aria-label="Mobile menu">
+    <div class="overlay-glass">
+      <div class="overlay-header">
+        <div class="overlay-title">Explore</div>
+        <button class="close-btn" id="closeOverlay" aria-label="Close menu" type="button">✕</button>
+      </div>
+
+      <!-- Mobile search in overlay -->
+      <form class="overlay-search" action="{{ url_for('search') }}" method="get">
+        <input type="search" name="q" placeholder="Search products or stores…" autocomplete="off">
+        <button type="submit">Search</button>
+      </form>
+    </div>
+
+    <!-- Quick links -->
+    <div class="overlay-links">
+      <a class="link-card" href="{{ url_for('products') }}">
+        <span class="meta"><span>🍗 Products</span><span class="badge">Fresh cuts</span></span>
+        <span>→</span>
+      </a>
+      {% if user %}
+        {% if user.role == 'admin' %}<a class="link-card" href="{{ url_for('admin_dashboard') }}"><span class="meta"><span>🛡 Admin</span></span><span>→</span></a>{% endif %}
+        {% if user.role == 'store' %}<a class="link-card" href="{{ url_for('store_dashboard') }}"><span class="meta"><span>🏬 Store</span></span><span>→</span></a>{% endif %}
+        {% if user.role == 'delivery' %}<a class="link-card" href="{{ url_for('delivery_dashboard') }}"><span class="meta"><span>🚚 Delivery</span></span><span>→</span></a>{% endif %}
+        <a class="link-card" href="{{ url_for('orders') }}"><span class="meta"><span>📦 My Orders</span></span><span>→</span></a>
+        <a class="link-card" href="{{ url_for('cart_page') }}"><span class="meta"><span>🧺 Cart</span></span><span>→</span></a>
+        <a class="link-card" href="{{ url_for('profile') }}"><span class="meta"><span>👤 Account</span></span><span>→</span></a>
+        <a class="link-card" href="{{ url_for('logout') }}" id="logoutLinkMobile"><span class="meta"><span>🚪 Logout</span></span><span>→</span></a>
+      {% else %}
+        <a class="link-card" href="{{ url_for('login') }}"><span class="meta"><span>🔐 Login</span></span><span>→</span></a>
+        <a class="link-card" href="{{ url_for('register') }}"><span class="meta"><span>✨ Sign up</span></span><span>→</span></a>
+      {% endif %}
+    </div>
+
+    <div class="overlay-divider"></div>
+
+    <div class="overlay-glass">
+      <div style="font-weight:700;margin-bottom:8px">Legal &amp; Help</div>
+      <div class="overlay-links">
+        {% for link in FOOTER_LINKS %}
+          <a class="link-card" href="{{ url_for(link.endpoint) }}"><span class="meta"><span>{{ link.label }}</span></span><span>→</span></a>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="flash-wrap" role="status" aria-live="polite">
+    {% for cat,msg in messages %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}
+  </div>
+  {% endif %}
+{% endwith %}
+
+<main class="container">{% block content %}{% endblock %}</main>
+
+<!-- ================= FOOTER (unchanged) ================= -->
+<footer class="footer-strip">
+  <div class="footer-inner">
+    <div class="footer-panel">
+      <div class="footer-grid">
+        <div class="footer-section">
+          <div class="title">Catalog</div>
+          <nav class="footer-links" aria-label="Catalog">
+            <a href="{{ url_for('products') }}">All Products</a>
+            <a href="{{ url_for('products') }}">Fresh Cuts</a>
+            <a href="{{ url_for('products') }}">Daily Deals</a>
+          </nav>
+        </div>
+
+        <div class="footer-section">
+          <div class="title">Info</div>
+          <nav class="footer-links" aria-label="Info">
+            <a href="/about">About</a>
+            <a href="#">Stores</a>
+            <a href="#">Contact Us</a>
+          </nav>
+        </div>
+
+        <div class="footer-section">
+          <div class="title">Legal</div>
+          <nav class="footer-links" aria-label="Legal">
+            {% for link in FOOTER_LINKS %}
+              <a href="{{ url_for(link.endpoint) }}">{{ link.label }}</a>
+            {% endfor %}
+          </nav>
+
+          <div class="title" style="margin-top:12px">Newsletter</div>
+          <form class="newsletter" method="post" action="{{ url_for('newsletter_subscribe') }}">
+            <input type="email" name="email" placeholder="Your email" required>
+            <button type="submit">Subscribe</button>
+          </form>
+          <div class="socials">
+            <a aria-label="Facebook" href="#"><svg viewBox="0 0 24 24"><path d="M13 3h4a1 1 0 0 1 1 1v4h-3a2 2 0 0 0-2 2v3h5l-1 4h-4v7h-4v-7H6v-4h3V9a5 5 0 0 1 5-5z"/></svg></a>
+            <a aria-label="X" href="#"><svg viewBox="0 0 24 24"><path d="M3 3h3l5 7 5-7h3l-6 8 7 10h-3l-5-7-5 7H4l7-10z"/></svg></a>
+            <a aria-label="Instagram" href="#"><svg viewBox="0 0 24 24"><path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5zm5 5a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm6.5-1.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/></svg></a>
+          </div>
+        </div>
+
+        <div class="footer-logo-wrap">
+          <div class="footer-logo">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="Chhimphei Chicken">
+            <div class="muted" style="letter-spacing:.04em">MAKE SPACE IN YOUR INBOX</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="copy">© {{ datetime.utcnow().year }} Chhimphei Chicken Powered by- Sayanant Group, Guwahati Assam </div>
+  </div>
+</footer>
+
+<!-- ========= Location Modal ========= -->
+<div id="locModal" class="loc-modal" hidden>
+  <div class="loc-card" role="dialog" aria-modal="true" aria-labelledby="locTitle">
+    <div class="loc-head">
+      <div class="loc-title" id="locTitle">Set your delivery location</div>
+      <button class="loc-close" id="locCloseBtn" type="button" aria-label="Close">✕</button>
+    </div>
+    <div class="loc-body">
+      <div class="loc-row">
+        <div class="small">We currently deliver only to specific pincodes. Choose “Use My Location” or type your pincode.</div>
+        <div class="loc-actions">
+          <button id="useGeoBtn" class="btn btn-icon" type="button">
+            <span>📍</span><span>Use My Location</span>
+          </button>
+          <button id="clearLocBtn" class="btn btn-ghost" type="button">Clear</button>
+        </div>
+      </div>
+
+      <div class="loc-row">
+        <label for="pinInput" class="small">Pincode</label>
+        <input id="pinInput" class="input" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="Enter pincode">
+        <div id="svcStatus" class="status small" aria-live="polite"></div>
+      </div>
+
+      <div class="loc-row">
+        <label for="addrInput" class="small">Detected address (editable)</label>
+        <input id="addrInput" class="input" type="text" placeholder="Your address will appear here if detected">
+        <div class="hint">Tip: You can fine-tune this address before saving.</div>
+      </div>
+    </div>
+    <div class="loc-foot">
+      <button id="saveLocBtn" class="btn" type="button">Save</button>
+      <button id="cancelLocBtn" class="btn btn-ghost" type="button">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script defer src="{{ url_for('static', filename='js/alerts.js') }}"></script>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+
+<!-- ✅ NEW: normalize & inject ALLOWED_PINCODES -->
+<script>
+  // Always normalize pincodes to digit-only strings (max 10, India=6 is fine).
+  function normalizePin(p){ return (p||'').toString().replace(/\D+/g,'').slice(0,10); }
+  window.ALLOWED_PINCODES = ({{ (ALLOWED_PINCODES|tojson if ALLOWED_PINCODES is defined else '[]')|safe }} || [])
+    .map(p => normalizePin(p))
+    .filter(Boolean);
+</script>
+
+<script>
+  // Mobile menu toggle (unchanged)
+  (function(){
+    const hamburger = document.getElementById('hamburger');
+    const overlay   = document.getElementById('overlay');
+    const closeBtn  = document.getElementById('closeOverlay');
+
+    function openMenu(){
+      overlay.hidden = false;
+      requestAnimationFrame(() => overlay.classList.add('open'));
+      hamburger.classList.add('active');
+      hamburger.setAttribute('aria-expanded','true');
+      setTimeout(() => closeBtn?.focus(), 60);
+    }
+    function closeMenu(){
+      overlay.classList.remove('open');
+      hamburger.classList.remove('active');
+      hamburger.setAttribute('aria-expanded','false');
+      setTimeout(() => { overlay.hidden = true; }, 260);
+      hamburger.focus();
+    }
+    function toggleMenu(){
+      if (overlay.hidden || !overlay.classList.contains('open')) openMenu();
+      else closeMenu();
+    }
+
+    hamburger?.addEventListener('click', toggleMenu);
+    closeBtn?.addEventListener('click', closeMenu);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeMenu(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !overlay.hidden) closeMenu(); });
+
+    document.getElementById('mobileMenu')?.querySelectorAll('a').forEach(a => {
+      a.addEventListener('click', closeMenu);
+    });
+  })();
+</script>
+
+<!-- ✅ NEW: Upgraded Location engine (GPS + IP fallback, strict pin handling) -->
+<script>
+  (function(){
+    const navShell = document.getElementById('navShell');
+
+    // Desktop nav chip
+    const navChip   = document.getElementById('navLocChip');
+    const navAddr   = document.getElementById('navLocAddr');
+    const navBadge  = document.getElementById('navLocBadge');
+
+    // Mobile strip
+    const stripChip = document.getElementById('stripChip');
+    const stripAddr = document.getElementById('locStripAddr');
+    const stripPin  = document.getElementById('locStripPin');
+    const stripBadge= document.getElementById('locStripBadge');
+    const stripChange = document.getElementById('locStripChange');
+    const stripUseGeo = document.getElementById('locStripUseGeo');
+    const stripClear  = document.getElementById('locStripClear');
+
+    // Modal
+    const modal = document.getElementById('locModal');
+    const closeBtn = document.getElementById('locCloseBtn');
+    const cancelBtn = document.getElementById('cancelLocBtn');
+    const clearBtn = document.getElementById('clearLocBtn');
+    const saveBtn = document.getElementById('saveLocBtn');
+    const geoBtn  = document.getElementById('useGeoBtn');
+    const pinInput = document.getElementById('pinInput');
+    const addrInput = document.getElementById('addrInput');
+    const svcStatus = document.getElementById('svcStatus');
+
+    // Fetch allowed pincodes from backend if not injected
+    async function ensureAllowedPins(){
+      if (Array.isArray(window.ALLOWED_PINCODES) && window.ALLOWED_PINCODES.length) return;
+      try{
+        const r = await fetch('{{ url_for("api_service_pincodes") }}');
+        const j = await r.json();
+        if (j && j.ok && Array.isArray(j.pincodes)) {
+          window.ALLOWED_PINCODES = j.pincodes.map(normalizePin).filter(Boolean);
+        }
+      }catch(_){}
+    }
+    const allowed = () => (Array.isArray(window.ALLOWED_PINCODES) ? window.ALLOWED_PINCODES : []);
+
+    // Storage
+    function toggleNavWidth(){
+      const pin = localStorage.getItem('cc_pin');
+      const addr = localStorage.getItem('cc_addr');
+      navShell.classList.toggle('nav-wide', !!(pin || addr));
+    }
+    function loadFromStorage(){
+      const pin = localStorage.getItem('cc_pin');
+      const addr = localStorage.getItem('cc_addr');
+      const lat = localStorage.getItem('cc_lat');
+      const lng = localStorage.getItem('cc_lng');
+      return { pin, addr, lat: lat?parseFloat(lat):null, lng: lng?parseFloat(lng):null };
+    }
+    function saveToStorage(pin, addr, lat, lng){
+      if (pin !== undefined && pin !== null) localStorage.setItem('cc_pin', normalizePin(pin));
+      if (addr !== undefined && addr !== null) localStorage.setItem('cc_addr', addr);
+      if (lat !== undefined && lat !== null) localStorage.setItem('cc_lat', lat);
+      if (lng !== undefined && lng !== null) localStorage.setItem('cc_lng', lng);
+    }
+    function clearStorage(){
+      localStorage.removeItem('cc_pin');
+      localStorage.removeItem('cc_addr');
+      localStorage.removeItem('cc_lat');
+      localStorage.removeItem('cc_lng');
+      toggleNavWidth();
+    }
+
+    // Backend sync
+    async function pushToBackend(pin, addr, lat, lng){
+      try{
+        const res = await fetch('{{ url_for("api_location_set") }}', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ address: addr || '', pincode: normalizePin(pin || ''), lat, lng })
+        });
+        return await res.json();
+      }catch(e){ return null; }
+    }
+    function clearBackend(){
+      fetch('{{ url_for("api_location_clear") }}', { method:'POST' });
+    }
+
+    // Renderers
+    function renderAll(){
+      const list = allowed();
+      const { pin, addr } = loadFromStorage();
+      const p = normalizePin(pin);
+
+      // desktop
+      if (navAddr){
+        navAddr.textContent = addr ? (addr.length>40 ? addr.slice(0,37)+'…' : addr) : 'Set your location';
+        if (navBadge){
+          if (list.length && p){
+            navBadge.hidden = false;
+            if (list.includes(p)){ navBadge.textContent='Serviceable'; navBadge.classList.remove('no'); navBadge.classList.add('ok'); }
+            else { navBadge.textContent='Not serviceable'; navBadge.classList.remove('ok'); navBadge.classList.add('no'); }
+          } else { navBadge.hidden = true; navBadge.classList.remove('ok','no'); }
+        }
+      }
+
+      // mobile
+      if (stripAddr) stripAddr.textContent = addr ? (addr.length>72 ? addr.slice(0,69)+'…' : addr) : 'Set your location';
+      if (stripPin)  stripPin.textContent  = p || '—';
+      if (stripBadge){
+        if (list.length && p){
+          stripBadge.hidden = false;
+          if (list.includes(p)){ stripBadge.textContent='Serviceable'; stripBadge.classList.remove('no'); stripBadge.classList.add('ok'); }
+          else { stripBadge.textContent='Not serviceable'; stripBadge.classList.remove('ok'); stripBadge.classList.add('no'); }
+        } else { stripBadge.hidden = true; stripBadge.classList.remove('ok','no'); }
+      }
+
+      toggleNavWidth();
+    }
+    function renderStatus(pin){
+      const p = normalizePin(pin);
+      if (!p){ svcStatus.textContent=''; svcStatus.classList.remove('ok','no'); return; }
+      const ok = allowed().includes(p);
+      if (allowed().length){
+        svcStatus.textContent = ok ? 'Great! We deliver to this pincode.' : 'Sorry, this pincode is not in our service area yet.';
+        svcStatus.classList.toggle('ok', ok);
+        svcStatus.classList.toggle('no', !ok);
+      }else{
+        svcStatus.textContent = 'Pincode set.'; svcStatus.classList.remove('ok','no');
+      }
+    }
+
+    // Modal helpers
+    function openModal(){ modal.hidden=false; setTimeout(()=>pinInput.focus(),60); }
+    function closeModal(){ modal.hidden=true; }
+
+    // IP Fallback (approx city/state/pincode)
+    async function ipFallback(){
+      try{
+        const r = await fetch('https://ipapi.co/json/');
+        const j = await r.json();
+        const pin = normalizePin(j.postal);
+        const addr = [j.city, j.region, j.country_name].filter(Boolean).join(', ');
+        return { pin, addr, lat: j.latitude || null, lng: j.longitude || null };
+      }catch(_){
+        return { pin:'', addr:'', lat:null, lng:null };
+      }
+    }
+
+    // Geolocate + reverse geocode
+    async function detectAndFill(openModalOnFail=false){
+      // First try precise GPS
+      if (navigator.geolocation){
+        try{
+          const pos = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy:true, timeout:15000, maximumAge:0 });
+          });
+          const { latitude, longitude } = pos.coords;
+          const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(latitude)}&lon=${encodeURIComponent(longitude)}&zoom=18&addressdetails=1`;
+          const resp = await fetch(url, { headers:{'Accept':'application/json'} });
+          const data = await resp.json();
+
+          const addr = data?.display_name || '';
+          const pin  = normalizePin(data?.address?.postcode || '');
+
+          if (addr) addrInput.value = addr;
+          if (pin)  pinInput.value  = pin;
+          renderStatus(pin);
+
+          if (pin || addr){
+            saveToStorage(pin || '', addr || '', latitude, longitude);
+            renderAll();
+            await pushToBackend(pin || '', addr || '', latitude, longitude);
+            return;
+          }
+        }catch(e){
+          // continue to IP fallback below
+        }
+      }
+
+      // Then try IP-based coarse location
+      const ip = await ipFallback();
+      if (ip.addr || ip.pin){
+        addrInput.value = ip.addr || addrInput.value;
+        pinInput.value  = ip.pin  || pinInput.value;
+        renderStatus(ip.pin);
+        saveToStorage(ip.pin || '', ip.addr || '', ip.lat, ip.lng);
+        renderAll();
+        await pushToBackend(ip.pin || '', ip.addr || '', ip.lat, ip.lng);
+      }else if(openModalOnFail){
+        openModal();
+      }
+    }
+
+    // Save from modal
+    function saveAndClose(){
+      const pin = normalizePin(pinInput.value || '');
+      const addr = (addrInput.value || '').trim();
+      if (!pin && !addr){
+        alert('Please provide at least a pincode or an address.');
+        return;
+      }
+      const { lat, lng } = loadFromStorage();
+      saveToStorage(pin, addr, lat, lng);
+      renderAll();
+      pushToBackend(pin, addr, lat, lng);
+      closeModal();
+    }
+
+    // Wire up
+    navChip?.addEventListener('click', openModal);
+    stripChip?.addEventListener('click', openModal);
+    stripChange?.addEventListener('click', openModal);
+
+    stripUseGeo?.addEventListener('click', async () => {
+      stripUseGeo.disabled = true; stripUseGeo.textContent = 'Locating…';
+      try{ await detectAndFill(false); } finally { stripUseGeo.disabled = false; stripUseGeo.textContent = 'Use My Location'; }
+    });
+    stripClear?.addEventListener('click', () => { clearStorage(); renderAll(); clearBackend(); });
+
+    [closeBtn, cancelBtn].forEach(b => b.addEventListener('click', closeModal));
+    clearBtn.addEventListener('click', () => { clearStorage(); pinInput.value=''; addrInput.value=''; renderStatus(''); renderAll(); clearBackend(); });
+    saveBtn.addEventListener('click', saveAndClose);
+    geoBtn.addEventListener('click', async () => { geoBtn.disabled=true; geoBtn.textContent='Locating…'; try{ await detectAndFill(false); } finally { geoBtn.disabled=false; geoBtn.textContent='Use My Location'; } });
+    pinInput.addEventListener('input', (e)=> { e.target.value = normalizePin(e.target.value); renderStatus(e.target.value); });
+
+    // Logout clears stored location
+    const logoutMobile = document.getElementById('logoutLinkMobile');
+    const logoutDesk   = document.getElementById('logoutLink');
+    logoutMobile?.addEventListener('click', () => { clearStorage(); renderAll(); clearBackend(); });
+    logoutDesk  ?.addEventListener('click', () => { clearStorage(); renderAll(); clearBackend(); });
+
+    // Boot
+    (async function boot(){
+      await ensureAllowedPins();
+      renderAll();
+
+      const { pin, addr, lat, lng } = loadFromStorage();
+      if (!pin && !addr){
+        // Ask immediately on first visit (browser will show native prompt)
+        detectAndFill(true);
+      } else {
+        pushToBackend(pin||'', addr||'', lat, lng);
+      }
+
+      // Close modal on outside click / Esc
+      modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !modal.hidden) closeModal(); });
+    })();
+  })();
+</script>
+</body>
+</html>

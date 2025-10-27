@@ -1,0 +1,388 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Delivery Dashboard</h2>
+
+<!-- Live sharing status bar -->
+<div class="card livebar">
+  <div class="livebar-row">
+    <button id="btnStopAll" class="btn-ghost" disabled>Stop Sharing</button>
+    <span id="statusBadge" class="tag">offline</span>
+    <span id="gpsInfo" class="muted"></span>
+  </div>
+  <div class="muted small">
+    Keep this page open while on a trip so your location keeps updating live.
+  </div>
+</div>
+
+<!-- Desktop table / Mobile cards -->
+<div class="orders-wrap">
+  <table class="table orders-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Store</th>
+        <th>Customer</th>
+        <th>Phone</th> <!-- ✅ Added customer phone -->
+        <th>Total (₹)</th>
+        <th>Status</th>
+        <th>Address</th>
+        <th>Action</th>
+        <th>Quick Nav</th>
+      </tr>
+    </thead>
+
+    <!-- 🔁 Give tbody an ID so alerts.js can prepend new orders -->
+    <tbody id="orders-list">
+    {% for o in orders %}
+      <!-- 🔁 Add data-order-id for dedupe/insert logic -->
+      <tr class="order-row" data-order-id="{{ o.id }}">
+        <td data-label="#"> {{ o.id }} </td>
+        <td data-label="Store"> {{ o.store_name }} </td>
+        <td data-label="Customer"> {{ o.customer_name }} </td>
+        <td data-label="Phone">
+          {% if o.customer_phone %}
+            <a href="tel:{{ o.customer_phone }}" class="pill tel-pill">📞 {{ o.customer_phone }}</a>
+          {% else %}
+            —
+          {% endif %}
+        </td>
+        <td data-label="Total"> {{ '%.2f'|format(o.total_amount) }} </td>
+        <td data-label="Status"> {{ o.status }} </td>
+
+        <td data-label="Address" class="muted">
+          Deliver to:
+          {% if o.addr_line1 %}
+            {{ o.addr_line1 }}{% if o.addr_line2 %}, {{ o.addr_line2 }}{% endif %},
+            {{ o.addr_city }}, {{ o.addr_state }} {{ o.addr_pincode }}
+            {% if o.addr_lat and o.addr_lng %} <br><small>({{ o.addr_lat }}, {{ o.addr_lng }})</small>{% endif %}
+          {% else %}
+            —
+          {% endif %}
+        </td>
+
+        <!-- ✅ Action column -->
+        <td data-label="Action" class="actions">
+          {% if not o.delivery_partner_id %}
+            <form method="post" action="{{ url_for('delivery_assign', oid=o.id) }}" class="inline">
+              <button class="btn bounce-in">Assign to me</button>
+            </form>
+          {% endif %}
+
+          <!-- Total payable -->
+          <div class="muted payable">
+            Total Payable:
+            <strong>₹ {{
+              '%.2f'|format((o.total_amount or 0) + (o.delivery_fee or 0) + (o.tip_amount or 0))
+            }}</strong>
+            {% if o.tip_amount and o.tip_amount > 0 %}
+              <span class="tag">includes tip ₹{{ '%.2f'|format(o.tip_amount) }}</span>
+            {% endif %}
+          </div>
+
+          <!-- Share live location -->
+          <button class="btn-ghost share-btn" data-order-id="{{ o.id }}">
+            Share Live Location
+          </button>
+
+          <!-- COD confirmation + status -->
+          <form method="post" action="{{ url_for('delivery_status', oid=o.id) }}" class="inline">
+            <select name="status" class="select">
+              <option value="OUT_FOR_DELIVERY" {% if o.status=='OUT_FOR_DELIVERY' %}selected{% endif %}>OUT_FOR_DELIVERY</option>
+              <option value="DELIVERED" {% if o.status=='DELIVERED' %}selected{% endif %}>DELIVERED</option>
+            </select>
+            <label class="chk">
+              <input type="checkbox" name="cod_received" value="1">
+              Payment received
+            </label>
+            <button class="btn-ghost" type="submit">Update</button>
+          </form>
+        </td>
+
+        <td data-label="Quick Nav">
+          {% if o.addr_lat and o.addr_lng %}
+            <a class="btn-ghost" target="_blank"
+               href="https://www.google.com/maps/dir/?api=1&destination={{ o.addr_lat }},{{ o.addr_lng }}">
+               Open in Maps
+            </a>
+          {% else %}
+            <span class="muted">No coords</span>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Mobile cards (visible on small screens) -->
+  <div class="cards" id="orders-cards">
+    {% for o in orders %}
+    <div class="card order-card" data-order-id="{{ o.id }}">
+      <div class="card-head">
+        <div class="id">#{{ o.id }}</div>
+        <div class="status">{{ o.status }}</div>
+      </div>
+
+      <div class="row"><span>Store</span><strong>{{ o.store_name }}</strong></div>
+      <div class="row"><span>Customer</span><strong>{{ o.customer_name }}</strong></div>
+      <div class="row">
+        <span>Phone</span>
+        <strong>
+          {% if o.customer_phone %}
+            <a href="tel:{{ o.customer_phone }}" class="pill tel-pill">📞 {{ o.customer_phone }}</a>
+          {% else %} — {% endif %}
+        </strong>
+      </div>
+
+      <div class="row">
+        <span>Total</span>
+        <strong>₹ {{
+          '%.2f'|format((o.total_amount or 0) + (o.delivery_fee or 0) + (o.tip_amount or 0))
+        }}</strong>
+      </div>
+
+      <div class="addr">
+        <div class="lbl">Deliver to</div>
+        <div class="txt muted">
+          {% if o.addr_line1 %}
+            {{ o.addr_line1 }}{% if o.addr_line2 %}, {{ o.addr_line2 }}{% endif %},
+            {{ o.addr_city }}, {{ o.addr_state }} {{ o.addr_pincode }}
+            {% if o.addr_lat and o.addr_lng %} <br><small>({{ o.addr_lat }}, {{ o.addr_lng }})</small>{% endif %}
+          {% else %}
+            —
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="btns">
+        {% if not o.delivery_partner_id %}
+          <form method="post" action="{{ url_for('delivery_assign', oid=o.id) }}" class="inline">
+            <button class="btn small bounce-in">Assign to me</button>
+          </form>
+        {% endif %}
+
+        <button class="btn-ghost small share-btn" data-order-id="{{ o.id }}">Share Location</button>
+
+        {% if o.addr_lat and o.addr_lng %}
+          <a class="btn-ghost small" target="_blank"
+             href="https://www.google.com/maps/dir/?api=1&destination={{ o.addr_lat }},{{ o.addr_lng }}">
+             Open in Maps
+          </a>
+        {% endif %}
+      </div>
+
+      <form method="post" action="{{ url_for('delivery_status', oid=o.id) }}" class="status-form">
+        <select name="status" class="select small">
+          <option value="OUT_FOR_DELIVERY" {% if o.status=='OUT_FOR_DELIVERY' %}selected{% endif %}>OUT_FOR_DELIVERY</option>
+          <option value="DELIVERED" {% if o.status=='DELIVERED' %}selected{% endif %}>DELIVERED</option>
+        </select>
+        <label class="chk small">
+          <input type="checkbox" name="cod_received" value="1"> Payment received
+        </label>
+        <button class="btn-ghost small" type="submit">Update</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- 🔔 Optional local test sound (alerts.js has its own beep already) -->
+<audio id="ding" preload="auto">
+  <source src="{{ url_for('static', filename='ding.mp3') }}" type="audio/mpeg">
+</audio>
+
+<!-- ✅ Shared real-time alerts (delivery role) -->
+<script defer src="{{ url_for('static', filename='js/alerts.js') }}"></script>
+<script>
+  // Explicitly start the shared poller for the delivery dashboard.
+  document.addEventListener('DOMContentLoaded', () => {
+    if (window.initAlerts) {
+      window.initAlerts({ role: 'delivery' });
+    }
+  });
+</script>
+
+<!-- 🚚 Live location script -->
+<script>
+(() => {
+  const statusBadge = document.getElementById('statusBadge');
+  const btnStopAll  = document.getElementById('btnStopAll');
+  const gpsInfo     = document.getElementById('gpsInfo');
+  let watchId = null;
+  let activeOrderId = null;
+
+  function setOnlineUI(on, orderId) {
+    statusBadge.textContent = on ? `live: #${orderId}` : 'offline';
+    statusBadge.className = on ? 'tag tag-green pulse' : 'tag';
+    btnStopAll.disabled = !on;
+  }
+
+  async function postPing(orderId, coords) {
+    const body = {
+      order_id: orderId,
+      latitude:  coords.latitude,
+      longitude: coords.longitude,
+      heading:   (typeof coords.heading === 'number') ? coords.heading : null,
+      speed:     (typeof coords.speed === 'number')   ? coords.speed   : null
+    };
+    try {
+      await fetch('{{ url_for("delivery_update_location") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body),
+        cache: 'no-store',
+        credentials: 'same-origin'
+      });
+    } catch (e) {
+      console.warn('Failed to send location', e);
+    }
+  }
+
+  function startSharing(orderId) {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by this browser.');
+      return;
+    }
+    if (watchId !== null) {
+      navigator.geolocation.clearWatch(watchId);
+      watchId = null;
+    }
+    activeOrderId = orderId;
+    setOnlineUI(true, orderId);
+
+    watchId = navigator.geolocation.watchPosition(
+      pos => {
+        const c = pos.coords;
+        gpsInfo.textContent =
+          `lat ${c.latitude.toFixed(5)}, lng ${c.longitude.toFixed(5)}` +
+          (typeof c.speed === 'number' ? ` | speed ${(c.speed || 0).toFixed(1)} m/s` : '');
+        postPing(orderId, c);
+      },
+      err => {
+        console.warn('GPS error', err);
+        gpsInfo.textContent = 'location error';
+      },
+      { enableHighAccuracy: true, maximumAge: 4000, timeout: 10000 }
+    );
+  }
+
+  function stopSharing() {
+    if (watchId !== null) {
+      navigator.geolocation.clearWatch(watchId);
+      watchId = null;
+    }
+    activeOrderId = null;
+    setOnlineUI(false);
+    gpsInfo.textContent = '';
+  }
+
+  document.querySelectorAll('.share-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const oid = parseInt(btn.dataset.orderId, 10);
+      startSharing(oid);
+    });
+  });
+  btnStopAll.addEventListener('click', stopSharing);
+  window.addEventListener('beforeunload', stopSharing);
+})();
+</script>
+
+<style>
+/* --- Layout polish & animations --- */
+.livebar {
+  padding:12px;margin-bottom:16px;border:1px solid var(--line);border-radius:12px;
+  background:#fff; box-shadow:0 6px 14px rgba(2,6,23,.06);
+  animation: pop .25s ease;
+}
+.livebar-row { display:flex;gap:12px;align-items:center;flex-wrap:wrap }
+.small { font-size:.92rem }
+
+/* Table polish */
+.orders-wrap { display:block }
+.orders-table { width:100%; border-collapse: collapse; animation: fadein .25s ease; }
+.orders-table thead th { position:sticky; top:0; background:#fff; z-index:1 }
+.orders-table th, .orders-table td { border-bottom:1px solid var(--line); padding:10px 8px; vertical-align:top; }
+.order-row { transition: background .2s ease, transform .12s ease; }
+.order-row:hover { background:#f9fafb; transform: translateY(-1px) }
+
+.actions .inline { display:inline-block; margin-right:6px }
+.payable { margin:6px 0 }
+.select { min-width: 170px }
+.chk { margin-left:8px }
+
+/* Pills */
+.pill {
+  display:inline-flex; align-items:center; gap:6px;
+  padding:4px 8px; border-radius:999px; border:1px solid var(--line);
+  background:#fff; transition: box-shadow .2s ease, transform .12s ease;
+}
+.pill:hover { box-shadow:0 4px 12px rgba(2,6,23,.07); transform: translateY(-1px) }
+.tel-pill { font-weight:600 }
+
+/* Cards for mobile */
+.cards { display:none; gap:12px; }
+.card.order-card {
+  border:1px solid var(--line); border-radius:14px; padding:12px; background:#fff;
+  box-shadow:0 6px 14px rgba(2,6,23,.06); animation: fadein .25s ease;
+}
+.card-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px }
+.card-head .id { font-weight:700 }
+.card-head .status { font-size:.9rem; color:#475569 }
+.row { display:flex; justify-content:space-between; gap:12px; padding:6px 0; border-top:1px dashed #eef0f3 }
+.row:first-of-type { border-top:none }
+.row span { color:#6b7280 }
+.addr { margin-top:8px }
+.addr .lbl { font-weight:600; margin-bottom:4px }
+.btns { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px }
+.status-form { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:10px }
+
+/* Status badge animation */
+.pulse { animation: pulse 1.2s infinite ease-in-out; }
+
+/* Buttons micro-interactions */
+.btn, .btn-ghost {
+  transition: transform .12s ease, box-shadow .2s ease, opacity .2s ease;
+}
+.btn:hover, .btn-ghost:hover { transform: translateY(-1px) }
+.bounce-in { animation: bounce .35s ease; }
+
+/* === DESKTOP-ONLY FIX FOR BROKEN "OPEN IN MAPS" WRAP === */
+@media (min-width: 981px) {
+  /* Keep the last column (Quick Nav) from wrapping and give it breathing room */
+  .orders-table th:nth-last-child(1),
+  .orders-table td:nth-last-child(1) {
+    white-space: nowrap;
+    width: 160px;          /* enough to keep "Open in Maps" on one line */
+  }
+  /* Make the link behave like a compact pill */
+  .orders-table td:nth-last-child(1) .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 128px;
+    padding: 8px 12px;
+    border-radius: 12px;
+  }
+}
+
+/* Responsive */
+@media (max-width: 980px) {
+  .orders-table { display:none }
+  .cards { display:grid; grid-template-columns: 1fr; }
+}
+@media (min-width: 981px) {
+  .cards { display:none }
+}
+
+@keyframes fadein { from { opacity:0; transform: translateY(4px) } to { opacity:1; transform:none } }
+@keyframes pop { from { transform: scale(.98); opacity:.7 } to { transform: scale(1); opacity:1 } }
+@keyframes bounce {
+  0% { transform: scale(.98) translateY(2px) }
+  60% { transform: scale(1.02) translateY(-1px) }
+  100% { transform: scale(1) translateY(0) }
+}
+@keyframes pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(16,185,129,.0) }
+  50%     { box-shadow: 0 0 0 6px rgba(16,185,129,.15) }
+}
+</style>
+{% endblock %}

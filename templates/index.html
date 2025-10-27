@@ -1,0 +1,488 @@
+{% extends "base.html" %}
+{% block content %}
+
+<!-- ===================== FULL-BLEED HERO SLIDER (edge-to-edge) ===================== -->
+<section class="hero-fw" aria-label="Fresh meats banner">
+  <div class="hero-track" id="heroTrack" data-interval="4800">
+    <!-- Slides -->
+    <figure class="hero-slide is-active">
+      <img src="static/2.jpg" alt="Fresh farm chicken">
+      <figcaption class="hero-caption">
+        
+        
+      </figcaption>
+    </figure>
+
+    <figure class="hero-slide">
+      <img src="static/3.jpg" alt="Juicy grilled pieces">
+      <figcaption class="hero-caption">
+        
+        
+      </figcaption>
+    </figure>
+
+    <figure class="hero-slide">
+      <img src="static/4.jpg" alt="Hygienic preparation">
+      <figcaption class="hero-caption">
+        
+        
+      </figcaption>
+    </figure>
+
+    <figure class="hero-slide">
+      <img src="static/5.jpg" alt="Premium cuts">
+      <figcaption class="hero-caption">
+        
+        
+      </figcaption>
+    </figure>
+
+    <figure class="hero-slide">
+      <img src="static/1.jpg" alt="Trusted local stores">
+      <figcaption class="hero-caption">
+        
+        
+      </figcaption>
+    </figure>
+  </div>
+
+  <!-- Navigation -->
+  <button class="hero-nav prev" aria-label="Previous slide">‹</button>
+  <button class="hero-nav next" aria-label="Next slide">›</button>
+  <div class="hero-dots" id="heroDots" aria-label="Slide navigation"></div>
+</section>
+
+<!-- ===================== VALUE PROPS (unchanged) ===================== -->
+<section class="value-strip">
+  <div class="value-grid">
+    <div class="value-card plx" data-depth="0.06">
+      <div class="ic">⏱️</div>
+      <h3>Same-day delivery</h3>
+      <p>We pack fast and deliver even faster. Most orders reach you in a few hours.</p>
+    </div>
+    <div class="value-card plx" data-depth="0.08">
+      <div class="ic">🧼</div>
+      <h3>Ultra hygienic</h3>
+      <p>Handled with food-grade gloves, sealed packs, and sanitized surfaces.</p>
+    </div>
+    <div class="value-card plx" data-depth="0.10">
+      <div class="ic">📍</div>
+      <h3>Live tracking</h3>
+      <p>Know exactly where your order is—from the store to your door.</p>
+    </div>
+    <div class="value-card plx" data-depth="0.12">
+      <div class="ic">💵</div>
+      <h3>Cash on delivery</h3>
+      <p>Prefer paying at the doorstep? We’ve got COD covered.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== FEATURED PRODUCTS (redesigned) ===================== -->
+<section class="pro-grid-wrap">
+  <header class="pro-header">
+    <h2>Featured Products</h2>
+    <p class="muted">Hand-picked fresh cuts from our best-rated stores.</p>
+  </header>
+
+  <section class="grid pro-grid" id="productsGrid" aria-label="Featured products">
+    {% for p in products %}
+    {% set pr = product_rating_map.get(p.id) %}
+    {% set sr = store_rating_map.get(p.store_id) %}
+    <article class="pro-card will-reveal" style="--delay: {{ (loop.index0 % 12) * 40 }}ms">
+      <a class="pro-media" href="{{ url_for('product_detail', pid=p.id) }}" aria-label="View {{ p.name }}">
+        <img src="{{ '/' + p.image_path if p.image_path else url_for('static', filename='placeholder.png') }}" alt="{{ p.name }}">
+        <span class="pro-tag">In stock</span>
+      </a>
+
+      <div class="pro-body">
+        <div class="pro-title">
+          <h3><a href="{{ url_for('product_detail', pid=p.id) }}">{{ p.name }}</a></h3>
+          <span class="price">₹ {{ '%.2f'|format(p.price_per_kg) }}<small>/kg</small></span>
+        </div>
+
+        <div class="pro-sub muted">{{ p.store_name }}</div>
+
+        <!-- Ratings (read-only) -->
+        <div class="pro-ratings">
+          {% set p_avg = (pr.avg if pr and pr.avg is not none else 0) %}
+          {% set p_cnt = (pr.count if pr else 0) %}
+          <div class="r-block" title="Product rating: {{ '%.1f'|format(p_avg) }} / 5">
+            <div class="stars" style="--val: {{ '%.2f'|format(p_avg) }};"></div>
+            <span class="r-meta small">Product {{ '%.1f'|format(p_avg) }} ({{ p_cnt }})</span>
+          </div>
+
+          {% set s_avg = (sr.avg if sr and sr.avg is not none else 0) %}
+          {% set s_cnt = (sr.count if sr else 0) %}
+          <div class="r-block" title="Store rating: {{ '%.1f'|format(s_avg) }} / 5">
+            <div class="stars" style="--val: {{ '%.2f'|format(s_avg) }};"></div>
+            <span class="r-meta small">Store {{ '%.1f'|format(s_avg) }} ({{ s_cnt }})</span>
+          </div>
+        </div>
+
+        {% if user %}
+        <!-- CHANGE HERE: pass the event to the handler -->
+        <form class="pro-cart" method="post" action="{{ url_for('api_cart_add') }}" onsubmit="return addToCart(event, this);">
+          <input type="hidden" name="product_id" value="{{ p.id }}">
+          <label class="w-input">
+            <span>Weight (kg)</span>
+            <input type="number" name="weight_kg" min="0.25" step="0.25" value="1.0" required>
+          </label>
+          <button class="btn-buy" type="submit">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 6h15l-1.5 9H7.5L6 6z"/><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/></svg>
+            Add to Cart
+          </button>
+        </form>
+        {% else %}
+        <div class="pro-foot">
+          <a class="btn-outline" href="{{ url_for('login') }}">Login to buy</a>
+        </div>
+        {% endif %}
+      </div>
+    </article>
+    {% endfor %}
+  </section>
+</section>
+
+<!-- ===================== HOW IT WORKS (unchanged) ===================== -->
+<section class="steps">
+  <h2>How it works</h2>
+  <ol class="steps-list">
+    <li class="step plx" data-depth="0.04">
+      <span class="num">1</span>
+      <div>
+        <h4>Choose your cuts</h4>
+        <p>Browse fresh products from verified neighborhood stores.</p>
+      </div>
+    </li>
+    <li class="step plx" data-depth="0.06">
+      <span class="num">2</span>
+      <div>
+        <h4>Place the order</h4>
+        <p>We notify the store immediately and prepare hygienic packs.</p>
+      </div>
+    </li>
+    <li class="step plx" data-depth="0.08">
+      <span class="num">3</span>
+      <div>
+        <h4>Live tracking</h4>
+        <p>Track your rider in real time and pay upon delivery if you like.</p>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<!-- ===================== TRUST STRIP (unchanged) ===================== -->
+<section class="trust">
+  <div class="trust-inner">
+    <div class="trust-item">⭐ 4.8/5 average store rating</div>
+    <div class="trust-item">🧊 Cold-chain friendly packaging</div>
+    <div class="trust-item">🛡️ Secure COD + digital payments</div>
+  </div>
+</section>
+
+<style>
+:root{
+  --ease: cubic-bezier(.2,.8,.2,1);
+  --card: #ffffff;
+  --muted: #6b7280;
+  --bd: #eceff3;
+  --shadow: 0 10px 28px rgba(2,6,23,.08);
+}
+
+/* ========= Smooth page entry ========= */
+html.page-enter{opacity:0; transform: translateY(8px)}
+html.page-enter.page-ready{opacity:1; transform:none; transition: opacity .5s var(--ease), transform .5s var(--ease)}
+
+/* ========= FULL-BLEED HERO ========= */
+.hero-fw{
+  position:relative; width:100vw; left:50%; right:50%;
+  margin-left:-50vw; margin-right:-50vw; /* full-bleed beyond container */
+  /* ⬇️ Increased height */
+  height: clamp(520px, 72vh, 820px);
+  overflow:hidden; border-radius: 0 0 18px 18px;
+  box-shadow: 0 14px 32px rgba(2,6,23,.18);
+  background:#000;
+}
+.hero-track{position:relative; width:100%; height:100%}
+.hero-slide{
+  position:absolute; inset:0; display:grid; place-items:center;
+  opacity:0; transform: translateX(6%); transition: opacity .9s var(--ease), transform 1s var(--ease);
+}
+.hero-slide.is-active{opacity:1; transform: translateX(0)}
+.hero-slide img{
+  position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
+  filter: contrast(1.04) saturate(1.06) brightness(.9);
+  transform: scale(1.03);
+  transition: transform 6s linear;
+}
+.hero-slide.is-active img{ transform: scale(1.08) } /* subtle ken burns */
+
+.hero-caption{
+  position:relative; z-index:2; color:#fff; text-align:center;
+  padding: 0 16px; max-width: 900px;
+  text-shadow: 0 2px 16px rgba(0,0,0,.45);
+  animation: capIn .8s var(--ease) both;
+}
+.hero-caption h1{ font-size: clamp(26px, 4vw, 42px); margin: 0 0 6px }
+.hero-caption p{ margin: 0 0 14px; font-size: clamp(14px, 2vw, 18px); opacity:.95 }
+.btn{display:inline-flex;align-items:center;gap:8px;border-radius:12px;padding:10px 14px;font-weight:700;text-decoration:none;border:1px solid transparent}
+.btn-primary{background:#fff;color:#111;border-color:#e5e7eb}
+.btn-primary:hover{background:#f5f5f5}
+.btn-light{background:rgba(255,255,255,.12); color:#fff; border-color:rgba(255,255,255,.35)}
+.btn-light:hover{background:rgba(255,255,255,.18)}
+
+.hero-nav{
+  position:absolute; top:50%; transform:translateY(-50%);
+  width:42px;height:42px;border-radius:50%; border:none; cursor:pointer;
+  background:rgba(0,0,0,.45); color:#fff; display:grid; place-items:center;
+  backdrop-filter: blur(3px); z-index:3
+}
+.hero-nav:hover{background:rgba(0,0,0,.65)}
+.hero-nav.prev{left:14px}
+.hero-nav.next{right:14px}
+
+.hero-dots{position:absolute; left:0; right:0; bottom:12px; display:flex; gap:8px; justify-content:center; z-index:3}
+.hero-dots button{width:8px;height:8px;border-radius:999px;border:none;background:rgba(255,255,255,.45);cursor:pointer}
+.hero-dots button.is-active{background:#fff;width:20px;transition:width .25s var(--ease)}
+
+@keyframes capIn{from{opacity:0; transform: translateY(12px)} to{opacity:1; transform:none}}
+
+/* ========= VALUE / TRUST (as before) ========= */
+.value-strip{ margin: 16px 0 10px }
+.value-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px }
+.value-card{ background:#fff; border:1px solid #eee; border-radius:14px; padding:14px; box-shadow:var(--shadow) }
+.value-card:hover{ transform: translateY(-2px); box-shadow:0 16px 28px rgba(2,6,23,.10) }
+.value-card .ic{ font-size:22px }
+
+.pro-grid-wrap{ margin-top: 12px }
+.pro-header h2{ margin:0 }
+.pro-header p{ margin:6px 0 12px }
+
+.pro-grid{grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:16px}
+
+/* Staggered reveal on page open */
+.will-reveal{opacity:0; transform: translateY(16px) scale(.98)}
+.page-ready .will-reveal{animation: reveal .55s var(--ease) both}
+@keyframes reveal{ from{opacity:0; transform: translateY(16px) scale(.98)} to{opacity:1; transform:none} }
+.page-ready .pro-grid .will-reveal{ animation-delay: var(--delay, 0ms) }
+
+.pro-card{
+  background: var(--card);
+  border: 1px solid var(--bd);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  display:flex; flex-direction:column;
+}
+.pro-media{ position:relative; display:block; line-height:0 }
+.pro-media img{ width:100%; height: 180px; object-fit: cover; display:block; transition: transform .6s var(--ease) }
+.pro-media:hover img{ transform: scale(1.04) }
+.pro-tag{
+  position:absolute; left:10px; top:10px; background:rgba(17,17,17,.85); color:#fff;
+  font-size:.75rem; padding:4px 8px; border-radius:999px
+}
+.pro-body{ padding:12px; display:flex; flex-direction:column; gap:8px }
+.pro-title{ display:flex; justify-content:space-between; gap:10px; align-items:baseline }
+.pro-title h3{ margin:0; font-size:1.05rem }
+.pro-title h3 a{ color:inherit; text-decoration:none }
+.price{ font-weight:800 }
+.price small{ font-weight:600; color:#666 }
+
+.pro-sub{ font-size:.92rem }
+
+.pro-ratings{ display:grid; grid-template-columns:1fr 1fr; gap:10px; align-items:center }
+.r-block{ display:flex; align-items:center; gap:8px }
+.stars{ --val: 0; position:relative; width:90px; height:18px; font-size:18px; line-height:18px; color:#ddd }
+.stars::before{content:"★★★★★"; position:absolute; inset:0; color:#e5e7eb}
+.stars::after{content:"★★★★★"; position:absolute; inset:0; width: calc((var(--val) / 5) * 100%); color:#f59e0b; overflow:hidden; white-space:nowrap}
+.r-meta{ color: var(--muted) }
+
+.pro-cart{ display:grid; grid-template-columns:1fr auto; gap:8px; margin-top:2px }
+.w-input{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px; border:1px solid var(--bd); border-radius:10px }
+.w-input input{ max-width:120px }
+.btn-buy{
+  display:inline-flex; align-items:center; gap:8px;
+  background:#111; color:#fff; border:none; border-radius:10px; padding:10px 12px; cursor:pointer
+}
+.btn-outline{display:inline-block; padding:10px 12px; border-radius:10px; border:1px solid var(--bd); text-decoration:none; color:#111}
+
+/* ========= Steps / Trust ========= */
+.steps{ margin:26px 0 10px }
+.steps h2{ margin:0 0 10px }
+.steps-list{ list-style:none; margin:0; padding:0; display:grid; gap:12px }
+.step{ display:flex; gap:12px; align-items:flex-start; background:#fff; border:1px solid #eee; border-radius:12px; padding:12px; box-shadow:var(--shadow) }
+.num{ width:32px; height:32px; border-radius:50%; display:grid; place-items:center; background:#0f172a; color:#fff; font-weight:700 }
+
+.trust{ margin:14px 0 4px }
+.trust-inner{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px }
+.trust-item{ background:#fafafa; border:1px dashed #e8e8e8; border-radius:12px; padding:10px; text-align:center }
+
+/* ========= Responsive ========= */
+@media (max-width: 980px){
+  .value-grid{ grid-template-columns:1fr 1fr }
+  .trust-inner{ grid-template-columns:1fr }
+}
+@media (max-width: 640px){
+  .hero-nav.prev{left:8px} .hero-nav.next{right:8px}
+  .hero-dots{ bottom:10px }
+  .pro-ratings{ grid-template-columns:1fr; }
+}
+@media (prefers-reduced-motion: reduce){
+  *{ animation: none !important; transition: none !important }
+}
+</style>
+
+<script>
+/* ------------ Page smooth entry ------------ */
+document.documentElement.classList.add('page-enter');
+window.addEventListener('load', () => {
+  requestAnimationFrame(() => document.documentElement.classList.add('page-ready'));
+});
+
+/* ------------ FULL-BLEED HERO slider (autoplay + swipe/drag) ------------ */
+(() => {
+  const track = document.getElementById('heroTrack');
+  if (!track) return;
+  const slides = Array.from(track.querySelectorAll('.hero-slide'));
+  const dotsWrap = document.getElementById('heroDots');
+  const prev = document.querySelector('.hero-nav.prev');
+  const next = document.querySelector('.hero-nav.next');
+  const ms = +track.dataset.interval || 4800;
+
+  const dots = slides.map((_, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.addEventListener('click', () => go(i));
+    dotsWrap.appendChild(b);
+    return b;
+  });
+
+  let i = slides.findIndex(s => s.classList.contains('is-active'));
+  if (i < 0) i = 0;
+  let timer;
+
+  function setActive(idx){
+    slides.forEach((s, j) => s.classList.toggle('is-active', j === idx));
+    dots.forEach((d, j) => d.classList.toggle('is-active', j === idx));
+  }
+  function go(n){
+    i = (n + slides.length) % slides.length;
+    setActive(i);
+    restart();
+  }
+  function nextFn(){ go(i+1); }
+  function prevFn(){ go(i-1); }
+  function start(){ timer = setInterval(nextFn, ms); }
+  function stop(){ if (timer) clearInterval(timer); }
+  function restart(){ stop(); start(); }
+
+  prev.addEventListener('click', prevFn);
+  next.addEventListener('click', nextFn);
+  track.addEventListener('mouseenter', stop);
+  track.addEventListener('mouseleave', start);
+
+  // Touch / drag swipe
+  let sx = null, sy = null;
+  function onStart(e){ const t = e.touches? e.touches[0] : e; sx = t.clientX; sy = t.clientY; }
+  function onMove(e){
+    if (sx === null) return;
+    const t = e.touches? e.touches[0] : e;
+    const dx = t.clientX - sx; const dy = Math.abs(t.clientY - sy);
+    if (Math.abs(dx) > 30 && dy < 40){ (dx < 0 ? nextFn() : prevFn()); sx = sy = null; }
+  }
+  function onEnd(){ sx = sy = null; }
+  track.addEventListener('mousedown', onStart); track.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onEnd);
+  track.addEventListener('touchstart', onStart, {passive:true}); track.addEventListener('touchmove', onMove, {passive:true}); track.addEventListener('touchend', onEnd);
+
+  setActive(i); start();
+})();
+
+/* ------------ Parallax-lite for value cards & steps (kept) ------------ */
+(() => {
+  const items = document.querySelectorAll('.plx');
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!items.length || reduced) return;
+  function tick(){
+    const y = window.scrollY || document.documentElement.scrollTop || 0;
+    items.forEach(el => {
+      const d = parseFloat(el.dataset.depth || '0.04');
+      const r = el.getBoundingClientRect();
+      const inView = r.top < window.innerHeight && r.bottom > 0;
+      if (inView){
+        const shift = Math.min(20, Math.max(-20, (r.top - window.innerHeight/2) * -d / 8));
+        el.style.transform = `translateY(${shift}px)`;
+      }
+    });
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+})();
+
+/* ------------ AJAX add-to-cart (toast) — SUBMIT IS NOW PREVENTED ------------ */
+function addToCart(e, form) {
+  if (e && e.preventDefault) e.preventDefault();        // <— hard stop default navigation
+  const btn = form.querySelector('.btn-buy');
+  const btnOrig = btn ? btn.innerHTML : null;
+  if (btn) { btn.disabled = true; btn.innerHTML = 'Adding…'; }
+
+  function showToast(msg) {
+    const t = document.createElement('div');
+    t.textContent = msg;
+    Object.assign(t.style, {
+      position:'fixed', bottom:'16px', right:'16px', background:'#111', color:'#fff',
+      padding:'10px 12px', borderRadius:'10px', zIndex:9999, boxShadow:'0 8px 20px rgba(0,0,0,.25)'
+    });
+    document.body.appendChild(t);
+    setTimeout(()=>t.remove(), 1600);
+  }
+
+  function bumpCartCount(newCount){
+    const el = document.getElementById('cartCount');
+    if (!el) return;
+    const n = Number(newCount);
+    if (!Number.isNaN(n)) { el.textContent = String(n); return; }
+    const curr = parseInt(el.textContent || '0', 10) || 0;
+    el.textContent = String(curr + 1);
+  }
+
+  const fd = new FormData(form);
+  fd.append('_ajax', '1');
+
+  fetch(form.action, {
+    method: 'POST',
+    body: fd,
+    headers: {
+      'Accept': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest'
+    },
+    credentials: 'same-origin'
+  })
+  .then(res => {
+    if (res.redirected) {
+      window.location.assign(res.url);
+      return null;
+    }
+    const ct = res.headers.get('content-type') || '';
+    if (ct.includes('application/json')) return res.json();
+    return res.text().then(() => ({ ok: res.ok }));
+  })
+  .then(data => {
+    if (!data) return;
+    if (data.ok) {
+      if ('count' in data) bumpCartCount(data.count); else bumpCartCount(null);
+      showToast('Added to cart');
+    } else {
+      showToast('Could not add to cart');
+    }
+  })
+  .catch(() => showToast('Network error'))
+  .finally(() => {
+    if (btn) { btn.disabled = false; btn.innerHTML = btnOrig; }
+  });
+
+  return false; // <— return false synchronously so the form never navigates
+}
+</script>
+
+{% endblock %}

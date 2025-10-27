@@ -1,0 +1,409 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 style="font-size:2rem; font-weight:700; color:#1e293b; margin-bottom:24px; padding:0 20px;">All Products</h2>
+
+<style>
+  .grid{
+    display:grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap:24px;
+    padding:0 20px;
+    max-width:1400px;
+    margin:0 auto;
+  }
+  @media (max-width: 1200px){ .grid{grid-template-columns: repeat(3, 1fr); gap:20px; padding:0 16px;} }
+  @media (max-width: 900px){ .grid{grid-template-columns: repeat(2, 1fr); gap:20px; padding:0 16px;} }
+  @media (max-width: 600px){ .grid{grid-template-columns: 1fr; gap:16px; padding:0 12px;} }
+
+  .card{
+    border:1px solid #e2e8f0;
+    border-radius:16px;
+    background:#fff;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+    gap:0;
+    box-shadow:0 2px 8px rgba(0,0,0,0.04);
+    transition:all 0.3s ease;
+    position:relative;
+  }
+  .card:hover{
+    transform:translateY(-4px);
+    box-shadow:0 8px 30px rgba(0,0,0,0.12);
+    border-color:#cbd5e1;
+  }
+
+  .card img{
+    width:100%;
+    height:200px;
+    object-fit:cover;
+    display:block;
+    transition:transform 0.3s ease;
+  }
+  .card:hover img{
+    transform:scale(1.02);
+  }
+
+  .card-body{
+    padding:16px;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    flex-grow:1;
+  }
+
+  .price-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-top:4px;
+  }
+
+  .muted{
+    color:#64748b;
+    font-weight:400;
+  }
+
+  .small{
+    font-size:0.875rem;
+  }
+
+  .rating-pill{
+    display:inline-flex;
+    align-items:center;
+    background:#f8fafc;
+    color:#475569;
+    padding:4px 10px;
+    border-radius:12px;
+    font-size:0.8rem;
+    font-weight:600;
+    border:1px solid #e2e8f0;
+    min-width:50px;
+    justify-content:center;
+    gap:2px;
+  }
+
+  .actions{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    padding:16px;
+    background:#f8fafc;
+    border-top:1px solid #f1f5f9;
+  }
+
+  .weight{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+  }
+
+  .weight input{
+    width:100px;
+    padding:10px 12px;
+    border:1px solid #cbd5e1;
+    border-radius:8px;
+    font-size:0.9rem;
+    background:#fff;
+    transition:all 0.2s ease;
+  }
+  .weight input:focus{
+    outline:none;
+    border-color:#3b82f6;
+    box-shadow:0 0 0 3px rgba(59,130,246,0.1);
+  }
+
+  .btn{
+    padding:12px 16px;
+    border:1px solid #1e293b;
+    border-radius:10px;
+    background:#1e293b;
+    color:#fff;
+    cursor:pointer;
+    font-weight:600;
+    font-size:0.9rem;
+    transition:all 0.2s ease;
+    text-align:center;
+    flex:1;
+  }
+  .btn:hover{
+    background:#334155;
+    border-color:#334155;
+    transform:translateY(-1px);
+    box-shadow:0 4px 12px rgba(30,41,59,0.15);
+  }
+
+  .btn-ghost{
+    padding:12px 16px;
+    border:1px solid #cbd5e1;
+    border-radius:10px;
+    background:#fff;
+    color:#475569;
+    cursor:pointer;
+    font-weight:600;
+    font-size:0.9rem;
+    transition:all 0.2s ease;
+    text-align:center;
+    text-decoration:none;
+    flex:1;
+  }
+  .btn-ghost:hover{
+    background:#f8fafc;
+    border-color:#94a3b8;
+    transform:translateY(-1px);
+    box-shadow:0 4px 12px rgba(0,0,0,0.05);
+  }
+
+  .card-link{
+    display:block;
+    text-decoration:none;
+    color:inherit;
+  }
+
+  .title-line{
+    display:flex;
+    justify-content:space-between;
+    gap:8px;
+    align-items:flex-start;
+    margin-bottom:4px;
+  }
+
+  .title-line a{
+    font-weight:600;
+    color:#1e293b;
+    text-decoration:none;
+    font-size:1.1rem;
+    line-height:1.3;
+    flex:1;
+  }
+  .title-line a:hover{
+    color:#3b82f6;
+  }
+
+  .store{
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    font-size:0.9rem;
+  }
+
+  .price{
+    font-size:1.2rem;
+    font-weight:700;
+    color:#1e293b;
+  }
+
+  .action-buttons{
+    display:flex;
+    gap:8px;
+    width:100%;
+  }
+
+  .weight-label{
+    font-size:0.8rem;
+    font-weight:500;
+    color:#64748b;
+    white-space:nowrap;
+  }
+
+  /* Toast styles */
+  .toast-host{
+    position:fixed;
+    right:20px;
+    bottom:20px;
+    z-index:1000;
+    display:grid;
+    gap:8px;
+  }
+
+  .toast{
+    background:#1e293b;
+    color:#fff;
+    padding:14px 18px;
+    border-radius:12px;
+    font-weight:500;
+    box-shadow:0 8px 25px rgba(0,0,0,0.15);
+    transition:all 0.35s ease;
+  }
+
+  /* Loading state for buttons */
+  .btn-loading{
+    opacity:0.7;
+    pointer-events:none;
+  }
+
+  /* Stock indicator */
+  .stock-badge{
+    position:absolute;
+    top:12px;
+    right:12px;
+    background:rgba(255,255,255,0.95);
+    backdrop-filter:blur(8px);
+    padding:4px 10px;
+    border-radius:8px;
+    font-size:0.75rem;
+    font-weight:600;
+    color:#059669;
+    border:1px solid rgba(5,150,105,0.2);
+  }
+</style>
+
+<section class="grid" id="productsGrid">
+  {% for p in products %}
+  <article class="card reveal" data-product-id="{{ p.id }}">
+    <!-- Stock indicator -->
+    {% if p.stock_kg is not none and p.stock_kg > 0 %}
+      <div class="stock-badge">In Stock</div>
+    {% else %}
+      <div class="stock-badge" style="color:#dc2626; border-color:rgba(220,38,38,0.2);">Out of Stock</div>
+    {% endif %}
+
+    <!-- Make image/title clickable to detail page -->
+    <a class="card-link" href="{{ url_for('product_detail', pid=p.id) }}">
+      <img
+        src="{{ '/' + p.image_path if p.image_path else url_for('static', filename='placeholder.png') }}"
+        alt="{{ p.name }}"
+        loading="lazy">
+    </a>
+
+    <div class="card-body">
+      <div class="title-line">
+        <a href="{{ url_for('product_detail', pid=p.id) }}">{{ p.name }}</a>
+        <!-- Rating pill -->
+        <span class="rating-pill" title="Rating" data-rating-for="{{ p.id }}">
+          <span style="color:#f59e0b;">⭐</span> —
+        </span>
+      </div>
+      <p class="muted store">{{ p.store_name }}</p>
+      <div class="price-row">
+        <span class="price">₹ {{ '%.2f'|format(p.price_per_kg) }}/kg</span>
+        <a class="btn-ghost" href="{{ url_for('product_detail', pid=p.id) }}" style="padding:8px 12px; font-size:0.8rem;">View</a>
+      </div>
+    </div>
+
+    <div class="actions">
+      {% if user %}
+        <form class="cart-add" method="post" action="{{ url_for('api_cart_add') }}">
+          <input type="hidden" name="product_id" value="{{ p.id }}">
+          <div class="weight">
+            <span class="weight-label">Weight (kg)</span>
+            <input type="number" name="weight_kg" min="0.25" step="0.25" value="1.00" style="text-align:center;">
+          </div>
+          <div class="action-buttons">
+            <button class="btn" type="submit">Add to Cart</button>
+            <a class="btn-ghost" href="{{ url_for('product_detail', pid=p.id) }}">Buy Now</a>
+          </div>
+        </form>
+      {% else %}
+        <a class="btn-ghost" href="{{ url_for('login') }}" style="width:100%;">Login to Purchase</a>
+      {% endif %}
+    </div>
+  </article>
+  {% endfor %}
+</section>
+
+<script>
+  // --- Lazy load rating pills using your existing API: /api/ratings/product/<pid>
+  (async function hydrateRatings(){
+    const pills = document.querySelectorAll('[data-rating-for]');
+    for (const pill of pills){
+      const pid = pill.getAttribute('data-rating-for');
+      try{
+        const r = await fetch(`/api/ratings/product/${pid}`, {cache:'no-store'});
+        if(!r.ok) continue;
+        const j = await r.json();
+        if(j && j.ok){
+          const avg = Number(j.avg||0).toFixed(1);
+          const count = j.count||0;
+          pill.innerHTML = `<span style="color:#f59e0b;">⭐</span> ${avg} (${count})`;
+          pill.title = `⭐ ${avg} from ${count} review${count !== 1 ? 's' : ''}`;
+        }
+      }catch(_){}
+    }
+  })();
+
+  // --- Intercept Add-to-Cart forms so the page doesn't navigate to JSON
+  (function initCartAdds(){
+    const hostToast = () => {
+      let el = document.getElementById('toast-host');
+      if(!el){
+        el = document.createElement('div');
+        el.id = 'toast-host';
+        el.className = 'toast-host';
+        document.body.appendChild(el);
+      }
+      return el;
+    };
+    
+    const toast = (msg) => {
+      const h = hostToast();
+      const t = document.createElement('div');
+      t.className = 'toast';
+      t.textContent = '✓ ' + msg;
+      h.appendChild(t);
+      setTimeout(()=>{ 
+        t.style.opacity='0'; 
+        t.style.transform='translateY(10px)';
+        setTimeout(()=>t.remove(), 350); 
+      }, 2000);
+    };
+
+    document.querySelectorAll('form.cart-add').forEach(form => {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = form.querySelector('button[type="submit"]');
+        const originalText = btn.textContent;
+        
+        // Add loading state
+        btn.classList.add('btn-loading');
+        btn.textContent = 'Adding...';
+        btn.disabled = true;
+
+        try{
+          const fd = new FormData(form);
+          // normalize weight
+          const w = Math.max(0.25, parseFloat(fd.get('weight_kg') || '1') || 1);
+          fd.set('weight_kg', String(w));
+
+          const r = await fetch(form.action, { method:'POST', body: fd, credentials:'same-origin' });
+          const j = await r.json().catch(() => ({}));
+          if (r.ok && j && j.ok){
+            toast('Added to cart');
+          } else if (j && j.msg){
+            alert(j.msg);
+          } else {
+            alert('Failed to add to cart.');
+          }
+        } catch(err){
+          alert('Network error while adding to cart.');
+        } finally {
+          // Remove loading state
+          btn.classList.remove('btn-loading');
+          btn.textContent = originalText;
+          btn.disabled = false;
+        }
+      });
+    });
+  })();
+
+  // Add subtle animation on scroll
+  (function initScrollAnimations(){
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.style.opacity = '1';
+          entry.target.style.transform = 'translateY(0)';
+        }
+      });
+    });
+
+    document.querySelectorAll('.card').forEach(card => {
+      card.style.opacity = '0';
+      card.style.transform = 'translateY(20px)';
+      card.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+      observer.observe(card);
+    });
+  })();
+</script>
+{% endblock %}

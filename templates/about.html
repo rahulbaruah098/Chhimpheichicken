@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+{% block title %}About • Chhimphei Women Poultry Producer Company Limited{% endblock %}
+
+{% block content %}
+<section class="about-page">
+  <style>
+    /* =========================
+       Scoped styles for About
+       ========================= */
+    .about-page{
+      --bg:#ffffff;
+      --card:#f8fafc;
+      --ink:#0e1116;
+      --muted:#5b6574;
+      --brand:#0ea5e9;
+      --brand-2:#16a34a;
+      --ring:rgba(14,165,233,.25);
+      --line:#e5e7eb;
+      --radius:18px;
+      --shadow:0 10px 30px rgba(2,6,23,.06);
+      --ease:cubic-bezier(.2,.8,.2,1);
+      color:var(--ink);
+      background:
+        radial-gradient(900px 420px at 10% -10%, rgba(14,165,233,.08), transparent 60%),
+        radial-gradient(900px 420px at 90% 0%, rgba(34,197,94,.08), transparent 60%),
+        var(--bg);
+    }
+    .about-page .shell{max-width:1200px;margin:0 auto;padding:20px 18px 32px}
+
+    /* ---------- Page header (compact, no images) ---------- */
+    .about-page .page-header{
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      background:#fff;
+      box-shadow:var(--shadow);
+      padding:22px 24px;          /* compact -> removes giant space */
+      display:grid;
+      gap:10px;
+    }
+    .about-page .page-header h1{
+      margin:0;
+      font-size:clamp(22px,3.6vw,30px);
+      line-height:1.15;
+      letter-spacing:.2px;
+      font-weight:800;
+    }
+    .about-page .lede{
+      margin:0;
+      font-size:clamp(18px,2.6vw,26px);
+      line-height:1.15;
+      font-weight:800;
+      background: linear-gradient(90deg, #0f172a, #0ea5e9, #16a34a);
+      -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+    }
+    .about-page .intro{margin:2px 0 0;color:var(--muted);font-size:1rem}
+
+    .about-page .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+    .about-page .btn{
+      display:inline-flex;align-items:center;gap:8px;
+      padding:10px 14px;border-radius:12px;border:1px solid var(--line);
+      text-decoration:none;font-weight:700;color:var(--ink);
+      background:#fff; box-shadow:var(--shadow);
+      transition:transform .18s var(--ease), border-color .18s var(--ease);
+    }
+    .about-page .btn:hover{transform:translateY(-1px);border-color:var(--ring)}
+    .about-page .btn.primary{background:linear-gradient(135deg,#22d3ee,#0ea5e9);color:#07263a;border-color:rgba(0,0,0,.06)}
+    .about-page .tag{font-size:.78rem;padding:6px 10px;border-radius:999px;border:1px dashed var(--line);color:var(--muted);font-weight:700;background:#fff}
+
+    /* ---------- Sections ---------- */
+    .about-page .section{margin-top:22px} /* tighter spacing */
+    .about-page .headline{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:10px}
+    .about-page .headline h2{margin:0;font-size:clamp(20px,2.2vw,26px)}
+    .about-page .muted{color:var(--muted)}
+
+    .about-page .grid{display:grid;gap:12px}
+    .about-page .grid.cols-3{grid-template-columns:repeat(3,1fr)}
+    .about-page .grid.cols-2{grid-template-columns:repeat(2,1fr)}
+
+    .about-page .card{
+      background:#fff;border:1px solid var(--line);border-radius:var(--radius);
+      padding:14px;box-shadow:var(--shadow);
+      transition:transform .18s var(--ease), border-color .18s var(--ease);
+    }
+    .about-page .card:hover{transform:translateY(-1px);border-color:var(--ring)}
+    .about-page .badge{
+      display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;
+      border:1px solid var(--line); background:#f8fafc; font-weight:700; font-size:.8rem; color:#0f172a;
+    }
+    .about-page .pill-strip{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+    .about-page .pill{padding:6px 10px;border-radius:999px;background:#f1f5f9;border:1px solid var(--line);font-weight:700;font-size:.8rem;color:#0f172a}
+
+    /* ---------- Timeline ---------- */
+    .about-page .timeline{position:relative;padding-left:22px}
+    .about-page .timeline::before{content:"";position:absolute;left:8px;top:0;bottom:0;width:2px;background:linear-gradient(to bottom, var(--brand), transparent)}
+    .about-page .tl-item{position:relative;padding:6px 0 6px 12px}
+    .about-page .tl-item::before{content:"";position:absolute;left:-2px;top:13px;width:10px;height:10px;border-radius:50%;background:var(--brand);box-shadow:0 0 0 6px rgba(14,165,233,.15)}
+    .about-page .tl-item h4{margin:0 0 4px;font-size:1rem}
+
+    /* ---------- Stats ---------- */
+    .about-page .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+    .about-page .stat{text-align:center;border:1px solid var(--line);border-radius:12px;padding:14px;background:#fff}
+    .about-page .stat .num{font-size:clamp(22px,3.2vw,28px);font-weight:800;background:linear-gradient(90deg,#0ea5e9,#16a34a);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+    .about-page .stat .lbl{color:var(--muted);font-weight:600}
+
+    /* ---------- Contact ---------- */
+    .about-page .contact{display:grid;grid-template-columns:1.2fr .8fr;gap:12px;align-items:stretch}
+    .about-page .kv{display:flex;gap:10px;align-items:center}
+    .about-page .kv .k{width:120px;color:var(--muted)}
+    .about-page .kv .v{font-weight:700}
+    .about-page .map{border-radius:16px;overflow:hidden;border:1px solid var(--line);min-height:260px;box-shadow:var(--shadow)}
+
+    .about-page .divider{height:1px;background:var(--line);margin:20px 0;border-radius:999px}
+
+    /* ---------- Responsive ---------- */
+    @media (max-width:1020px){
+      .about-page .contact{grid-template-columns:1fr}
+      .about-page .grid.cols-3{grid-template-columns:1fr 1fr}
+    }
+    @media (max-width:680px){
+      .about-page .stats{grid-template-columns:1fr 1fr}
+      .about-page .grid.cols-3,.about-page .grid.cols-2{grid-template-columns:1fr}
+      .about-page .page-header{padding:18px}
+    }
+  </style>
+
+  <main class="shell">
+    <!-- ====== PAGE HEADER (tight, no big empty left side) ====== -->
+    <header class="page-header reveal">
+      <h1>About Us</h1>
+      <p class="lede">Empowering women. Elevating poultry. Serving Mizoram—fresh, safe, and fair.</p>
+      <p class="intro">
+        Chhimphei Women Poultry Producer Company Limited (WPPCL) is the first women poultry producer company of Mizoram, established in 2018. We are committed to transforming the livelihoods of smallholder producers through a pro-poor poultry value chain—helping farmers upgrade practices and thrive in dynamic markets.
+      </p>
+      <div class="actions">
+        <a class="btn primary" href="/products">Shop Fresh Poultry</a>
+        <a class="btn" href="#mission">Our Mission</a>
+        <span class="tag">Supported by MzSRLM</span>
+      </div>
+    </header>
+
+    <!-- ====== MISSION / VISION / VALUES ====== -->
+    <section id="mission" class="section reveal">
+      <div class="headline">
+        <h2>Our mission, vision & values</h2>
+        <p class="muted">Farmer-first poultry ecosystem for Mizoram</p>
+      </div>
+      <div class="grid cols-3">
+        <div class="card">
+          <span class="badge">Mission</span>
+          <h3 style="margin:8px 0 6px">Transform smallholder livelihoods</h3>
+          <p class="muted">We build a pro-poor poultry value chain that raises incomes, improves skills, and delivers market access—empowering women producers to grow sustainably.</p>
+          <div class="pill-strip"><span class="pill">GPP Training</span><span class="pill">Veterinary Support</span><span class="pill">Market Linkages</span></div>
+        </div>
+        <div class="card">
+          <span class="badge">Vision</span>
+          <h3 style="margin:8px 0 6px">Fair, safe, and resilient poultry</h3>
+          <p class="muted">A future where every producer thrives and every consumer enjoys hygienic, reliable, and affordable poultry products.</p>
+          <div class="pill-strip"><span class="pill">Food Safety</span><span class="pill">Affordability</span><span class="pill">Resilience</span></div>
+        </div>
+        <div class="card">
+          <span class="badge">Values</span>
+          <h3 style="margin:8px 0 6px">Quality • Dignity • Transparency</h3>
+          <p class="muted">We uphold safety standards, respect for women’s work, and transparent pricing from farm to fork.</p>
+          <div class="pill-strip"><span class="pill">Quality</span><span class="pill">Dignity</span><span class="pill">Transparency</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====== VALUE CHAIN ====== -->
+    <section class="section reveal">
+      <div class="headline">
+        <h2>Our pro-poor poultry value chain</h2>
+        <p class="muted">Designed to capture value for producers and trust for consumers</p>
+      </div>
+      <div class="grid cols-3">
+        <div class="card">
+          <span class="badge">1 • Producer Services</span>
+          <h3 style="margin:8px 0 6px">Input & Training</h3>
+          <p class="muted">Feed, chicks, veterinary support & Good Poultry Practices (GPP) delivered to doorstep clusters.</p>
+        </div>
+        <div class="card">
+          <span class="badge">2 • Processing</span>
+          <h3 style="margin:8px 0 6px">Fresh-Cut & Hygienic</h3>
+          <p class="muted">Sanitized preparation, cold-chain aware packing and weight-accurate labelling.</p>
+        </div>
+        <div class="card">
+          <span class="badge">3 • Market Access</span>
+          <h3 style="margin:8px 0 6px">Chhimphei.com</h3>
+          <p class="muted">Direct-to-consumer e-commerce with fair pricing, COD, and same-day delivery.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====== TIMELINE ====== -->
+    <section class="section reveal">
+      <div class="headline">
+        <h2>Milestones</h2>
+        <p class="muted">A journey led by women producers</p>
+      </div>
+      <div class="grid cols-2">
+        <div class="card">
+          <div class="timeline">
+            <div class="tl-item"><h4>2018 — Incorporation</h4><p class="muted">First women poultry producer company of Mizoram established.</p></div>
+            <div class="tl-item"><h4>2019 — Producer Training</h4><p class="muted">Standardized GPP modules delivered across clusters.</p></div>
+            <div class="tl-item"><h4>2021 — Hygienic Fresh-Cut</h4><p class="muted">Upgraded processing for safe, sealed, and traceable packs.</p></div>
+            <div class="tl-item"><h4>2023 — D2C Roll-out</h4><p class="muted">“chhimphei.com” launched to deliver fresh hygienic poultry to consumers.</p></div>
+          </div>
+        </div>
+        <div class="card">
+          <h3 style="margin:8px 0 6px">What’s next</h3>
+          <p class="muted">Expanding producer base, strengthening cold-chain, and building last-mile delivery quality across Aizawl.</p>
+          <div class="pill-strip" style="margin-top:8px"><span class="pill">Cold-chain</span><span class="pill">Traceability</span><span class="pill">Fair Pricing</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====== STATS ====== -->
+    <section class="section reveal">
+      <div class="headline">
+        <h2>Impact at a glance</h2>
+        <p class="muted">Growing capacity & consumer trust, year after year</p>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="num">1st</div><div class="lbl">Women Poultry Producer Co. in Mizoram</div></div>
+        <div class="stat"><div class="num">2018</div><div class="lbl">Established</div></div>
+        <div class="stat"><div class="num">100%+</div><div class="lbl">Hygienic fresh-cut focus</div></div>
+        <div class="stat"><div class="num">COD</div><div class="lbl">Convenient doorstep payments</div></div>
+      </div>
+    </section>
+
+    <!-- ====== PARTNERS ====== -->
+    <section class="section reveal">
+      <div class="headline">
+        <h2>Supported by</h2>
+        <p class="muted">Government & community partnerships</p>
+      </div>
+      <div class="pill-strip">
+        <span class="pill">MzSRLM, Govt. of Mizoram</span>
+        <span class="pill">Women Producer Collectives</span>
+        <span class="pill">Trusted Local Stores</span>
+      </div>
+    </section>
+
+    <!-- ====== CONTACT ====== -->
+    <section class="section reveal">
+      <div class="headline">
+        <h2>Get in touch</h2>
+        <p class="muted">We’d love to hear from you</p>
+      </div>
+      <div class="contact">
+        <div class="card">
+          <span class="badge">Office</span>
+          <h3>Chhimphei Women Poultry Producer Company Limited</h3>
+          <div class="kv"><div class="k">Address</div><div class="v">Melriat, Aizawl, Mizoram</div></div>
+          <div class="kv"><div class="k">Phone</div><div class="v">8132831406</div></div>
+          <div class="kv"><div class="k">Website</div><div class="v">chhimphei.com</div></div>
+          <div class="kv"><div class="k">FSSAI</div><div class="v">21825102002418</div></div>
+          <div class="actions" style="margin-top:6px">
+            <a class="btn primary" href="/products">Shop Fresh Now</a>
+            <a class="btn" href="tel:+918132831406">Call Us</a>
+          </div>
+        </div>
+        <div class="map">
+          <iframe
+            title="Melriat, Aizawl, Mizoram"
+            src="https://www.openstreetmap.org/export/embed.html?bbox=92.676%2C23.65%2C92.76%2C23.76&layer=mapnik&marker=23.72%2C92.72"
+            style="border:0;width:100%;height:100%;"
+            loading="lazy"
+            referrerpolicy="no-referrer-when-downgrade"></iframe>
+        </div>
+      </div>
+    </section>
+
+    <div class="divider"></div>
+  </main>
+
+  <script>
+    // Reveal on scroll (scoped)
+    (function(){
+      const root = document.querySelector('.about-page');
+      const els = Array.from(root.querySelectorAll('.reveal'));
+      const io = new IntersectionObserver((entries)=>{
+        entries.forEach(e=>{
+          if(e.isIntersecting){
+            e.target.classList.add('show');
+            io.unobserve(e.target);
+          }
+        })
+      }, {threshold:.12});
+      els.forEach(el=>io.observe(el));
+    })();
+  </script>
+</section>
+{% endblock %}

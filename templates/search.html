@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="search-wrap">
+  <header class="search-head">
+    <h1>Search</h1>
+    <form action="{{ url_for('search') }}" method="get" class="search-bar">
+      <input type="search" name="q" value="{{ q }}" placeholder="Search products or stores..." required>
+      <button type="submit">Search</button>
+    </form>
+    {% if q %}<p class="muted">Results for “{{ q }}”</p>{% endif %}
+  </header>
+
+  <div class="search-grid">
+    <section class="search-col">
+      <h3>Products</h3>
+      {% if products %}
+      <div class="cards">
+        {% for p in products %}
+        <article class="s-card">
+          <a class="thumb" href="{{ url_for('product_detail', pid=p.id) }}">
+            <img src="{{ '/' + p.image_path if p.image_path else url_for('static', filename='placeholder.png') }}" alt="{{ p.name }}">
+          </a>
+          <div class="body">
+            <a class="title" href="{{ url_for('product_detail', pid=p.id) }}">{{ p.name }}</a>
+            <div class="sub muted">{{ p.store_name }}</div>
+            <div class="meta">
+              <strong>₹ {{ '%.2f'|format(p.price_per_kg) }}</strong><span class="muted">/kg</span>
+            </div>
+            <a class="btn" href="{{ url_for('product_detail', pid=p.id) }}">View</a>
+          </div>
+        </article>
+        {% endfor %}
+      </div>
+      {% else %}
+        <p class="muted">No products found.</p>
+      {% endif %}
+    </section>
+
+    <section class="search-col">
+      <h3>Stores</h3>
+      {% if stores %}
+      <div class="cards">
+        {% for s in stores %}
+        <article class="s-card">
+          <div class="thumb thumb-store">🏬</div>
+          <div class="body">
+            <a class="title" href="{{ url_for('store_catalog', sid=s.id) }}">{{ s.store_name }}</a>
+            {% if s.address %}<div class="sub muted">{{ s.address }}</div>{% endif %}
+            <div class="meta"><span class="muted">{{ s.product_count }} products</span></div>
+            <a class="btn btn-ghost" href="{{ url_for('store_catalog', sid=s.id) }}">View store</a>
+          </div>
+        </article>
+        {% endfor %}
+      </div>
+      {% else %}
+        <p class="muted">No stores found.</p>
+      {% endif %}
+    </section>
+  </div>
+</section>
+
+<style>
+.search-wrap{max-width:1100px;margin:0 auto;padding:10px 16px}
+.search-head h1{margin:8px 0}
+.search-bar{display:flex;gap:8px;margin:8px 0 12px}
+.search-bar input{flex:1;padding:10px;border:1px solid #e5e7eb;border-radius:10px}
+.search-bar button{padding:10px 12px;border-radius:10px;border:1px solid #e5e7eb;background:#111;color:#fff;cursor:pointer}
+.search-grid{display:grid;grid-template-columns:2fr 1.2fr;gap:16px}
+.search-col h3{margin:8px 0 10px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.s-card{display:grid;grid-template-columns:90px 1fr;gap:10px;border:1px solid #e5e7eb;border-radius:12px;padding:10px;background:#fff}
+.s-card .thumb{width:90px;height:90px;border-radius:10px;overflow:hidden;background:#f8fafc;display:block}
+.s-card .thumb img{width:100%;height:100%;object-fit:cover}
+.thumb-store{display:grid;place-items:center;font-size:28px}
+.s-card .body{display:flex;flex-direction:column;gap:6px}
+.s-card .title{text-decoration:none;color:#111;font-weight:700}
+.s-card .sub{font-size:.93rem}
+.s-card .meta{display:flex;gap:8px;align-items:center}
+.s-card .btn{align-self:flex-start;margin-top:4px;background:#111;color:#fff;border:none;border-radius:10px;padding:8px 10px;text-decoration:none}
+.btn-ghost{background:#f6f6f6;color:#111;border:1px solid #e5e7eb}
+.muted{color:#6b7280}
+@media (max-width: 980px){ .search-grid{grid-template-columns:1fr} .cards{grid-template-columns:1fr 1fr} }
+@media (max-width: 640px){ .cards{grid-template-columns:1fr} }
+</style>
+
+{% endblock %}

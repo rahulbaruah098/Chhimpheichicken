@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+  .help-grid{display:grid;grid-template-columns:1.2fr 2fr;gap:18px}
+  .card{border:1px solid #e5e7eb;border-radius:12px;padding:16px;background:#fff}
+  .card h2{margin:.2rem 0 .6rem 0;font-size:1.1rem}
+  .pill{display:inline-block;font-size:.8rem;padding:4px 8px;border-radius:999px;border:1px solid #e5e7eb}
+  .list{display:grid;gap:8px;margin:0;padding-left:18px}
+  .list li{margin-left:.2rem}
+  .cta a{display:inline-flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;border:1px solid #e5e7eb}
+  .cta a:hover{background:#f8fafc}
+  @media (max-width: 900px){.help-grid{grid-template-columns:1fr}}
+</style>
+
+<h1>Help & Support</h1>
+<p class="muted">Got a question or ran into a problem? Start here.</p>
+
+<div class="help-grid">
+  <!-- Quick Links -->
+  <aside class="card">
+    <h2>Quick links</h2>
+    <div class="list" style="padding-left:0">
+      <a class="cta" href="{{ url_for('orders') }}"><span>📦</span> View & track my orders</a>
+      <a class="cta" href="{{ url_for('profile') }}"><span>🏠</span> Manage addresses & profile</a>
+      <a class="cta" href="{{ url_for('products') }}"><span>🛒</span> Browse products</a>
+      <a class="cta" href="{{ url_for('newsletter_subscribe') }}" onclick="event.preventDefault();document.getElementById('newsletterJump').scrollIntoView({behavior:'smooth'});"><span>📰</span> Subscribe to updates</a>
+      <a class="cta" href="{{ url_for('legal_privacy') }}"><span>🔒</span> Privacy Policy</a>
+      <a class="cta" href="{{ url_for('legal_terms') }}"><span>📃</span> Terms & Conditions</a>
+      <a class="cta" href="{{ url_for('legal_report_fraud') }}"><span>🚩</span> Report a fraud</a>
+    </div>
+    <hr style="margin:14px 0;border:none;border-top:1px solid #e5e7eb">
+    <h2>Contact us</h2>
+    <div class="list" style="padding-left:0">
+      <a class="cta" href="mailto:support@chhimphei.local"><span>✉️</span> Email support@chhimphei.local</a>
+      <a class="cta" href="tel:+0000000000"><span>📞</span> Call +00 0000 00000</a>
+      <a class="cta" href="#"><span>💬</span> Chat on WhatsApp</a>
+    </div>
+  </aside>
+
+  <!-- FAQs & Guidance -->
+  <section class="card">
+    <h2>Frequently asked questions</h2>
+
+    <details open>
+      <summary><strong>How do I track my order?</strong></summary>
+      <div style="margin-top:8px">
+        Go to <a href="{{ url_for('orders') }}">My Orders</a>, click the order, and watch the status timeline.
+        If a delivery partner is assigned and sharing location, the latest location will appear on that page.
+      </div>
+    </details>
+
+    <details>
+      <summary><strong>I didn’t receive my OTP / it expired.</strong></summary>
+      <div style="margin-top:8px">
+        On the OTP screen, use <span class="pill">Resend OTP</span>. OTPs are valid for 10 minutes.
+        Ensure your phone number is correct and has network coverage.
+      </div>
+    </details>
+
+    <details>
+      <summary><strong>How are delivery fees calculated?</strong></summary>
+      <div style="margin-top:8px">
+        A base fee plus distance-based surcharge. If your address is too far from the store,
+        delivery may be unavailable. You’ll see the fee during checkout before placing the order.
+      </div>
+    </details>
+
+    <details>
+      <summary><strong>Can I pay cash on delivery (COD)?</strong></summary>
+      <div style="margin-top:8px">
+        Yes. For COD orders, the delivery partner will mark payment as received at handover.
+      </div>
+    </details>
+
+    <details>
+      <summary><strong>How do I report a problem with my order?</strong></summary>
+      <div style="margin-top:8px">
+        After the order is delivered, open the order page and use the feedback/complaint form.
+        You can rate the store and delivery partner, and optionally attach a photo.
+      </div>
+    </details>
+
+    <details>
+      <summary><strong>What data do you store?</strong></summary>
+      <div style="margin-top:8px">
+        We store account details, order info, and operational logs to run your deliveries.
+        See our <a href="{{ url_for('legal_privacy') }}">Privacy Policy</a> for details.
+      </div>
+    </details>
+
+    <details>
+      <summary><strong>How do I update my address?</strong></summary>
+      <div style="margin-top:8px">
+        Go to <a href="{{ url_for('profile') }}">Profile</a> → Addresses. Add a new address or set a default one.
+        For the best delivery fee estimates, include your location coordinates.
+      </div>
+    </details>
+
+    <details>
+      <summary><strong>My order shows “Delivered” but I didn’t get it.</strong></summary>
+      <div style="margin-top:8px">
+        First, check with family/guard/security. If still missing, open the order details and submit a complaint.
+        Our team will investigate and respond.
+      </div>
+    </details>
+
+    <hr style="margin:16px 0;border:none;border-top:1px solid #e5e7eb">
+    <h2 id="newsletterJump">Stay updated</h2>
+    <p class="muted">Get stock alerts, deals, and updates by email:</p>
+    <form class="newsletter" method="post" action="{{ url_for('newsletter_subscribe') }}">
+      <input type="email" name="email" placeholder="name@example.com" required>
+      <button type="submit">Subscribe</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

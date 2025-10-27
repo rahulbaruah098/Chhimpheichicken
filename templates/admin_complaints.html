@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Complaints</h2>
+<p class="muted">Review, search, and update complaint status. Use filters to narrow by target and status.</p>
+
+<style>
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 14px}
+.toolbar input,.toolbar select{padding:8px 10px;border:1px solid var(--line);border-radius:10px}
+.table{width:100%;border-collapse:collapse;background:#fff;border-radius:14px;overflow:hidden;border:1px solid var(--line)}
+.table th,.table td{border-bottom:1px solid #eee;padding:10px 12px;text-align:left;vertical-align:top}
+.table th{background:#fafafa;font-weight:600;color:#555}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;background:#f2f2f2;font-size:.85rem}
+.small{font-size:.9rem;color:#666}
+.wrap{white-space:normal;word-break:break-word}
+.actions{display:flex;gap:8px;align-items:center}
+select.status{padding:6px 8px;border:1px solid #ddd;border-radius:8px}
+button{padding:6px 10px;border:1px solid #ddd;border-radius:8px;cursor:pointer;background:#fff}
+.status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.dot-open{background:#ef4444}
+.dot-review{background:#f59e0b}
+.dot-resolved{background:#10b981}
+.dot-dismissed{background:#9ca3af}
+.filter-note{margin-left:auto;color:#666}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:14px 0 18px}
+.kpi{border:1px solid var(--line);border-radius:14px;padding:12px;background:#fff}
+.kpi .label{color:#666;font-size:.9rem}
+.kpi .value{font-size:1.4rem;font-weight:700;margin-top:4px}
+.tnum{font-variant-numeric:tabular-nums}
+.nowrap{white-space:nowrap}
+.muted{color:#6b7280}
+</style>
+
+<!-- Summary KPIs (computed in JS from the table to avoid extra SQL) -->
+<div class="kpis" id="kpiRow" hidden>
+  <div class="kpi">
+    <div class="label">Total Complaints</div>
+    <div class="value tnum" id="kpiTotal">0</div>
+  </div>
+  <div class="kpi">
+    <div class="label">Open</div>
+    <div class="value tnum" id="kpiOpen">0</div>
+  </div>
+  <div class="kpi">
+    <div class="label">In Review</div>
+    <div class="value tnum" id="kpiReview">0</div>
+  </div>
+  <div class="kpi">
+    <div class="label">Resolved</div>
+    <div class="value tnum" id="kpiResolved">0</div>
+  </div>
+  <div class="kpi">
+    <div class="label">Dismissed</div>
+    <div class="value tnum" id="kpiDismissed">0</div>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="toolbar">
+  <input id="q" type="search" placeholder="Search message / customer / ids …" />
+  <select id="fTarget">
+    <option value="">All targets</option>
+    <option value="store">Store</option>
+    <option value="delivery">Delivery</option>
+    <option value="product">Product</option>
+  </select>
+  <select id="fStatus">
+    <option value="">All status</option>
+    <option value="OPEN">OPEN</option>
+    <option value="IN_REVIEW">IN_REVIEW</option>
+    <option value="RESOLVED">RESOLVED</option>
+    <option value="DISMISSED">DISMISSED</option>
+  </select>
+  <span class="filter-note" id="rowCount"></span>
+</div>
+
+<table class="table" id="complaintsTable">
+  <thead>
+    <tr>
+      <th class="nowrap">#</th>
+      <th>When</th>
+      <th>Order / Target</th>
+      <th>Customer</th>
+      <th>Message</th>
+      <th>Status</th>
+      <th class="nowrap">Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for c in complaints %}
+    <tr
+      data-target="{{ (c.target_type or '')|lower }}"
+      data-status="{{ (c.status or 'OPEN')|upper }}"
+    >
+      <td class="tnum nowrap">C{{ c.id }}</td>
+      <td class="small">{{ c.created_at }}</td>
+      <td class="small">
+        {% if c.order_id %}
+          <div>
+            Order:
+            <a href="{{ url_for('order_track', oid=c.order_id) }}"><strong>#{{ c.order_id }}</strong></a>
+          </div>
+        {% endif %}
+
+        <div>
+          Target:
+          <span class="badge">{{ (c.target_type or '')|upper }}</span>
+          →
+          <strong>
+            {% if c.target_type == 'store' %}
+              {{ c.store_name or ('ID ' ~ c.target_id) }}
+            {% elif c.target_type == 'delivery' %}
+              {{ c.delivery_name or ('ID ' ~ c.target_id) }}
+            {% elif c.target_type == 'product' %}
+              {{ c.product_name or ('ID ' ~ c.target_id) }}
+            {% else %}
+              ID {{ c.target_id }}
+            {% endif %}
+          </strong>
+        </div>
+        <div class="muted small">Target ID: {{ c.target_id }}</div>
+      </td>
+
+      <td class="small">
+        <div>{{ c.customer_name or ('User ' ~ c.user_id) }}</div>
+        {% if c.customer_email %}<div class="muted">{{ c.customer_email }}</div>{% endif %}
+      </td>
+
+      <td class="wrap">{{ c.message }}</td>
+
+      <td class="nowrap">
+        {% set s = (c.status or 'OPEN') %}
+        {% if s == 'OPEN' %}
+          <span class="status-dot dot-open"></span><strong>OPEN</strong>
+        {% elif s == 'IN_REVIEW' %}
+          <span class="status-dot dot-review"></span><strong>IN_REVIEW</strong>
+        {% elif s == 'RESOLVED' %}
+          <span class="status-dot dot-resolved"></span><strong>RESOLVED</strong>
+        {% elif s == 'DISMISSED' %}
+          <span class="status-dot dot-dismissed"></span><strong>DISMISSED</strong>
+        {% else %}
+          <strong>{{ s }}</strong>
+        {% endif %}
+      </td>
+
+      <td>
+        <form class="actions" method="post" action="{{ url_for('admin_complaint_set_status', cid=c.id) }}">
+          <select name="status" class="status" required>
+            <option value="OPEN" {{ 'selected' if s=='OPEN' }}>OPEN</option>
+            <option value="IN_REVIEW" {{ 'selected' if s=='IN_REVIEW' }}>IN_REVIEW</option>
+            <option value="RESOLVED" {{ 'selected' if s=='RESOLVED' }}>RESOLVED</option>
+            <option value="DISMISSED" {{ 'selected' if s=='DISMISSED' }}>DISMISSED</option>
+          </select>
+          <button type="submit">Update</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" class="small">No complaints found.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<script>
+(function(){
+  const q = document.getElementById('q');
+  const fTarget = document.getElementById('fTarget');
+  const fStatus = document.getElementById('fStatus');
+  const table = document.getElementById('complaintsTable');
+  const rows = Array.from(table.querySelectorAll('tbody tr'));
+  const rowCount = document.getElementById('rowCount');
+
+  // KPIs
+  const kpi = {
+    wrap: document.getElementById('kpiRow'),
+    total: document.getElementById('kpiTotal'),
+    open: document.getElementById('kpiOpen'),
+    review: document.getElementById('kpiReview'),
+    resolved: document.getElementById('kpiResolved'),
+    dismissed: document.getElementById('kpiDismissed'),
+  };
+
+  function normalize(s){ return (s || '').toLowerCase(); }
+
+  function computeKPIs(visibleRows){
+    kpi.total.textContent = String(visibleRows.length);
+    let open=0, review=0, resolved=0, dismissed=0;
+    for (const r of visibleRows){
+      const st = (r.getAttribute('data-status') || '').toUpperCase();
+      if (st === 'OPEN') open++;
+      else if (st === 'IN_REVIEW') review++;
+      else if (st === 'RESOLVED') resolved++;
+      else if (st === 'DISMISSED') dismissed++;
+    }
+    kpi.open.textContent = String(open);
+    kpi.review.textContent = String(review);
+    kpi.resolved.textContent = String(resolved);
+    kpi.dismissed.textContent = String(dismissed);
+    kpi.wrap.hidden = false;
+  }
+
+  function applyFilters(){
+    const qv = normalize(q.value);
+    const target = (fTarget.value || '').toLowerCase();
+    const status = (fStatus.value || '').toUpperCase();
+
+    const visibleRows = [];
+
+    for (const r of rows){
+      // text search over all cells
+      const text = normalize(r.innerText);
+      const hitQ = !qv || text.includes(qv);
+
+      const rTarget = (r.getAttribute('data-target') || '').toLowerCase();
+      const rStatus = (r.getAttribute('data-status') || '').toUpperCase();
+
+      const hitTarget = !target || rTarget === target;
+      const hitStatus = !status || rStatus === status;
+
+      const show = hitQ && hitTarget && hitStatus;
+      r.style.display = show ? '' : 'none';
+      if (show){ visibleRows.push(r); }
+    }
+    rowCount.textContent = visibleRows.length + ' shown';
+    computeKPIs(visibleRows);
+  }
+
+  q.addEventListener('input', applyFilters);
+  fTarget.addEventListener('change', applyFilters);
+  fStatus.addEventListener('change', applyFilters);
+  applyFilters();
+})();
+</script>
+{% endblock %}

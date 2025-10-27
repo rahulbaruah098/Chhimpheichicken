@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="cart-section">
+  <h2 class="cart-title">🛒 Your Cart</h2>
+
+  {% if not items %}
+    <div class="cart-empty">
+      <img src="{{ url_for('static', filename='images/empty-cart.svg') }}" alt="Empty cart" />
+      <p>No items yet. Add some delicious meat to your cart!</p>
+      <a href="{{ url_for('products') }}" class="btn-primary">Shop Now</a>
+    </div>
+  {% else %}
+  <div class="cart-container">
+    <table class="cart-table">
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Weight (kg)</th>
+          <th>₹/kg</th>
+          <th>Subtotal</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="cartBody">
+        {% for i in items %}
+        {% set pid = i['product_id'] %}
+        {% set cart_item_id = i['cart_item_id'] %}
+        {% set img = '/' + i['image_path'] if i['image_path'] else url_for('static', filename='placeholder.png') %}
+        {% set name = i['name'] %}
+        {% set price = i['price_per_kg'] or 0 %}
+        {% set w = i['weight_kg'] or 0 %}
+        {% set stock = i['stock_kg'] or 0 %}
+        {% set store_name = i['store_name'] %}
+        <tr class="cart-row"
+            data-pid="{{ pid }}"
+            data-item-id="{{ cart_item_id }}"
+            data-price="{{ '%.2f'|format(price) }}"
+            data-stock="{{ '%.2f'|format(stock) }}">
+          <td>
+            <a href="{{ url_for('product_detail', pid=pid) }}" class="thumb-link">
+              <img src="{{ img }}" alt="{{ name }}">
+              <div class="item-info">
+                <div class="item-name">{{ name }}</div>
+                <div class="item-store">{{ store_name }}</div>
+              </div>
+            </a>
+          </td>
+
+          <td>
+            <div class="qty-wrap">
+              <button type="button" class="btn-qty btn-minus" aria-label="Decrease">−</button>
+              <input class="qty-input" type="text"
+                     value="{{ '%.2f'|format(w) }}"
+                     inputmode="decimal" autocomplete="off">
+              <button type="button" class="btn-qty btn-plus" aria-label="Increase">+</button>
+            </div>
+            <div class="qty-hint">Step: 0.25 kg</div>
+          </td>
+
+          <td>₹ {{ '%.2f'|format(price) }}</td>
+          <td class="cell-subtotal">₹ {{ '%.2f'|format(w * price) }}</td>
+
+          <td>
+            <form class="inline" method="post" action="{{ url_for('api_cart_remove') }}">
+              <input type="hidden" name="item_id" value="{{ cart_item_id }}">
+              <button class="btn-remove" title="Remove item">✕</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="cart-summary">
+      <p class="total">Total: <strong id="grandTotal">₹ {{ '%.2f'|format(total) }}</strong></p>
+      <a class="btn-primary" href="{{ url_for('checkout') }}">Proceed to Checkout →</a>
+    </div>
+  </div>
+  {% endif %}
+</section>
+
+<style>
+/* ===== Grocery-Style Bright Theme ===== */
+.cart-section {
+  background:#fdfdfd;
+  padding:2rem 1rem 4rem;
+  min-height:70vh;
+}
+.cart-title{
+  font-size:1.8rem;
+  font-weight:700;
+  text-align:center;
+  color:#0f172a;
+  margin-bottom:1.5rem;
+}
+.cart-empty{
+  text-align:center;
+  padding:3rem 1rem;
+  color:#475569;
+}
+.cart-empty img{
+  width:180px;
+  opacity:.8;
+  margin-bottom:1rem;
+}
+.btn-primary{
+  background:linear-gradient(90deg,#0ea5e9,#16a34a);
+  color:#fff;
+  border:none;
+  padding:.75rem 1.5rem;
+  border-radius:12px;
+  font-weight:600;
+  cursor:pointer;
+  text-decoration:none;
+  display:inline-block;
+  box-shadow:0 6px 16px rgba(14,165,233,.25);
+  transition:transform .15s ease, box-shadow .2s ease;
+}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(14,165,233,.35);}
+.btn-primary:active{transform:scale(.97);}
+
+/* ===== Table Styling ===== */
+.cart-container{
+  max-width:1000px;
+  margin:auto;
+  background:#fff;
+  border-radius:18px;
+  box-shadow:0 8px 24px rgba(0,0,0,.06);
+  padding:1rem 1.5rem;
+  overflow-x:auto;
+}
+.cart-table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:.95rem;
+}
+.cart-table th{
+  text-align:left;
+  color:#64748b;
+  border-bottom:2px solid #e2e8f0;
+  padding:12px 8px;
+  font-weight:600;
+}
+.cart-table td{
+  border-bottom:1px solid #f1f5f9;
+  padding:14px 8px;
+  vertical-align:middle;
+}
+.thumb-link{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  color:inherit;
+  text-decoration:none;
+}
+.thumb-link img{
+  width:64px;height:64px;object-fit:cover;
+  border-radius:12px;
+  box-shadow:0 3px 8px rgba(0,0,0,.08);
+  transition:transform .2s ease;
+}
+.thumb-link:hover img{transform:scale(1.05);}
+.item-info{line-height:1.3;}
+.item-name{font-weight:700;color:#0f172a;}
+.item-store{font-size:.85rem;color:#64748b;}
+
+/* ===== Quantity Controls ===== */
+.qty-wrap{
+  display:inline-flex;align-items:center;gap:6px;
+  background:#f9fafb;
+  border:1px solid #e2e8f0;
+  border-radius:12px;
+  padding:4px;
+}
+.btn-qty{
+  width:34px;height:34px;
+  border:none;
+  border-radius:10px;
+  background:#e0f2fe;
+  color:#0369a1;
+  font-size:18px;
+  cursor:pointer;
+  transition:all .15s ease;
+}
+.btn-qty:hover{background:#bae6fd;}
+.btn-qty:active{transform:scale(.95);}
+.qty-input{
+  width:70px;
+  border:none;
+  background:transparent;
+  text-align:center;
+  font-weight:600;
+  color:#0f172a;
+  font-size:1rem;
+}
+.qty-input:focus{outline:none;}
+.qty-hint{font-size:.8rem;color:#94a3b8;margin-top:3px;}
+
+/* ===== Remove Button ===== */
+.btn-remove{
+  background:none;
+  border:none;
+  color:#ef4444;
+  font-size:1.2rem;
+  cursor:pointer;
+  transition:transform .15s ease, color .15s ease;
+}
+.btn-remove:hover{color:#b91c1c;transform:scale(1.2);}
+
+/* ===== Total Summary ===== */
+.cart-summary{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:1.2rem 0 .5rem;
+  flex-wrap:wrap;
+  gap:.8rem;
+}
+.total{
+  font-size:1.2rem;
+  font-weight:600;
+  color:#0f172a;
+}
+
+/* ===== Responsive ===== */
+@media(max-width:720px){
+  .cart-table thead{display:none;}
+  .cart-table, .cart-table tbody, .cart-table tr, .cart-table td{
+    display:block;width:100%;
+  }
+  .cart-table tr{
+    background:#fff;
+    border:1px solid #e2e8f0;
+    border-radius:16px;
+    box-shadow:0 6px 14px rgba(0,0,0,.05);
+    margin-bottom:1rem;
+    padding:.8rem .6rem;
+  }
+  .cart-table td{
+    border:none;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:.5rem .2rem;
+  }
+  .cart-table td::before{
+    content:attr(data-label);
+    font-weight:600;
+    color:#64748b;
+  }
+  .cart-summary{
+    flex-direction:column;
+    text-align:center;
+  }
+  .btn-primary{width:100%;}
+}
+</style>
+
+<script>
+(function(){
+  const STEP=0.25,MIN=0.25;
+  const body=document.getElementById('cartBody');
+  const elGrand=document.getElementById('grandTotal');
+  function round2(x){return Math.round(x*100)/100;}
+  function fmtINR(x){return '₹ '+Number(x).toFixed(2);}
+  function recomputeRow(tr){
+    const price=Number(tr.dataset.price||0);
+    const input=tr.querySelector('.qty-input');
+    const w=Number(input.value||0);
+    const sub=tr.querySelector('.cell-subtotal');
+    if(sub)sub.textContent=fmtINR(price*w);
+  }
+  function recomputeTotal(){
+    let sum=0;
+    document.querySelectorAll('tr.cart-row').forEach(tr=>{
+      const price=Number(tr.dataset.price||0);
+      const w=Number(tr.querySelector('.qty-input').value||0);
+      sum+=price*w;
+    });
+    if(elGrand)elGrand.textContent=fmtINR(sum);
+  }
+  async function saveRow(tr){
+    const pid=tr.dataset.pid;
+    const stock=Number(tr.dataset.stock||0);
+    const input=tr.querySelector('.qty-input');
+    let w=Number(input.value||0);
+    if(!isFinite(w))w=MIN;
+    w=Math.max(MIN,w);
+    if(stock>0)w=Math.min(w,stock);
+    w=Math.max(MIN,Math.round(w/STEP)*STEP);
+    w=round2(w);
+    input.value=w.toFixed(2);
+    const fd=new FormData();
+    fd.append('product_id',pid);
+    fd.append('weight_kg',String(w));
+    try{
+      const r=await fetch('{{ url_for("api_cart_add") }}',{method:'POST',body:fd});
+      const j=await r.json();
+      if(!j.ok){alert(j.error||'Could not update item.');}
+    }catch(e){console.error(e);}
+    recomputeRow(tr);recomputeTotal();
+  }
+  body?.addEventListener('click',ev=>{
+    const btn=ev.target.closest('.btn-qty');
+    if(!btn)return;
+    const tr=ev.target.closest('tr.cart-row');
+    if(!tr)return;
+    const input=tr.querySelector('.qty-input');
+    const stock=Number(tr.dataset.stock||0);
+    let v=Number(input.value||0);
+    if(!isFinite(v)||v<=0)v=MIN;
+    if(btn.classList.contains('btn-plus'))v+=STEP;
+    if(btn.classList.contains('btn-minus'))v-=STEP;
+    if(stock>0)v=Math.min(v,stock);
+    v=Math.max(MIN,v);
+    v=Math.round(v/STEP)*STEP;
+    v=round2(v);
+    input.value=v.toFixed(2);
+    saveRow(tr);
+  });
+  body?.addEventListener('keydown',ev=>{
+    if(ev.key!=='Enter')return;
+    const input=ev.target.closest('.qty-input');
+    if(!input)return;
+    ev.preventDefault();
+    const tr=ev.target.closest('tr.cart-row');
+    if(tr)saveRow(tr);
+  });
+  body?.addEventListener('blur',ev=>{
+    const input=ev.target.closest('.qty-input');
+    if(!input)return;
+    const tr=ev.target.closest('tr.cart-row');
+    if(tr)saveRow(tr);
+  },true);
+})();
+</script>
+
+{% endblock %}

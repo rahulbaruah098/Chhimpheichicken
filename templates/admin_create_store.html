@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Create Store</h2>
+<form method="post" class="form" enctype="multipart/form-data">
+  <label>Owner Name <input name="name" required></label>
+  <label>Owner Email <input name="email" type="email" required></label>
+  <label>Owner Phone <input name="phone" type="tel" required></label>
+  <label>Temp Password <input name="password" type="text" required></label>
+  <label>Store Name <input name="store_name" required></label>
+  <label>Address <input name="address"></label>
+  <button class="btn">Create</button>
+</form>
+{% endblock %}

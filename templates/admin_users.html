@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Users</h2>
+<p class="muted">
+  Disable preserves order history; <strong>Delete</strong> is only allowed if the user has no dependent data.
+  For stores/delivery/customers with history, the backend will automatically <em>disable</em> instead of deleting.
+  You can also <strong>export</strong> a user's data/transactions before removal.
+</p>
+
+<!-- Toolbar: quick filters -->
+<div class="toolbar">
+  <div class="filters">
+    <label>
+      Role
+      <select id="roleFilter">
+        <option value="">All</option>
+        <option value="admin">Admin</option>
+        <option value="store">Store</option>
+        <option value="delivery">Delivery</option>
+        <option value="customer">Customer</option>
+      </select>
+    </label>
+    <label>
+      Active
+      <select id="activeFilter">
+        <option value="">All</option>
+        <option value="yes">Yes</option>
+        <option value="no">No</option>
+      </select>
+    </label>
+    <input id="searchInput" type="search" placeholder="Search by name/email/phone…" />
+  </div>
+</div>
+
+<style>
+.toolbar{display:flex;justify-content:space-between;align-items:center;margin:10px 0 6px}
+.filters{display:flex;gap:10px;align-items:center}
+.filters label{display:flex;gap:6px;align-items:center;font-size:.95rem}
+#searchInput{padding:6px 10px;border:1px solid #ddd;border-radius:8px;min-width:240px}
+
+.table{width:100%;border-collapse:collapse;margin-top:6px}
+.table th,.table td{border-bottom:1px solid #eee;padding:10px;vertical-align:top}
+.table th{background:#fafafa;text-align:left}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;background:#f2f2f2;font-size:.85rem}
+.badge.role-admin{background:#e8e7ff;color:#4338ca}
+.badge.role-store{background:#e6fff2;color:#047857}
+.badge.role-delivery{background:#e6f6ff;color:#0369a1}
+.badge.role-customer{background:#fff1e6;color:#b45309}
+.badge.active-yes{background:#dcfce7;color:#166534}
+.badge.active-no{background:#fee2e2;color:#b91c1c}
+.controls{display:flex;gap:8px;flex-wrap:wrap}
+button,.btn-link{padding:6px 10px;border:1px solid #ddd;border-radius:8px;cursor:pointer;background:#fff;text-decoration:none;color:#111;display:inline-block}
+button:hover,.btn-link:hover{background:#f8f8f8}
+.small{font-size:.9rem;color:#666}
+.note{font-size:.82rem;color:#777;margin-top:4px}
+tr.hidden{display:none}
+.name-wrap{display:flex;flex-direction:column;gap:2px}
+.actions-wrap{display:flex;flex-direction:column;gap:6px}
+.actions-row{display:flex;gap:8px;flex-wrap:wrap}
+.sep{height:1px;background:#eee;margin:6px 0}
+</style>
+
+<table class="table" id="usersTable">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Name</th>
+      <th>Email / Phone</th>
+      <th>Role</th>
+      <th>Status</th>
+      <th>Created</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for u in users %}
+    <tr
+      data-role="{{ u.role }}"
+      data-active="{{ 'yes' if u.is_active else 'no' }}"
+      data-search="{{ (u.name ~ ' ' ~ (u.email or '') ~ ' ' ~ (u.phone or ''))|lower }}"
+    >
+      <td>{{ u.id }}</td>
+      <td class="name-wrap">
+        <strong>{{ u.name }}</strong>
+        {% if u.role in ['store','delivery','customer'] %}
+          <span class="note">
+            {% if u.role == 'store' %}
+              Store can be deleted only if it has no orders; else it will be disabled.
+            {% elif u.role == 'delivery' %}
+              Partner can be deleted only if no delivery history; else disabled.
+            {% elif u.role == 'customer' %}
+              Customer can be deleted only if no orders; else disabled.
+            {% endif %}
+          </span>
+        {% endif %}
+      </td>
+      <td>
+        <div>{{ u.email }}</div>
+        <div class="small">{{ u.phone or '' }}</div>
+      </td>
+      <td>
+        <span class="badge role-{{ u.role }}">{{ u.role|upper }}</span>
+      </td>
+      <td>
+        <span class="badge active-{{ 'yes' if u.is_active else 'no' }}">{{ 'Active' if u.is_active else 'Disabled' }}</span>
+      </td>
+      <td class="small">{{ u.created_at }}</td>
+      <td>
+        <div class="controls actions-wrap">
+
+          <!-- Status controls -->
+          <div class="actions-row">
+            {% if u.is_active %}
+              <form method="post" action="{{ url_for('admin_user_disable', uid=u.id) }}">
+                <button type="submit" title="Disable user (safe, preserves history)">Disable</button>
+              </form>
+            {% else %}
+              <form method="post" action="{{ url_for('admin_user_enable', uid=u.id) }}">
+                <button type="submit" title="Activate user">Activate</button>
+              </form>
+            {% endif %}
+            {% if u.role != 'admin' %}
+              <form method="post" action="{{ url_for('admin_user_delete', uid=u.id) }}"
+                    onsubmit="return confirmDelete('{{ u.role }}','{{ u.name|e }}')">
+                <button type="submit" title="Delete user (only if no dependent data)">Delete</button>
+              </form>
+            {% endif %}
+          </div>
+
+          <div class="sep"></div>
+
+          <!-- Exports / Downloads -->
+          <div class="actions-row">
+            <a class="btn-link" href="{{ url_for('admin_user_transactions_csv', uid=u.id) }}" target="_blank" title="CSV of all related transactions">
+              Download Transactions CSV
+            </a>
+            <a class="btn-link" href="{{ url_for('admin_user_export_zip', uid=u.id) }}" title="Full data export (ZIP)">
+              Download Full Export (ZIP)
+            </a>
+          </div>
+
+        </div>
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="7" class="small">No users found.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<script>
+(function(){
+  const roleSel = document.getElementById('roleFilter');
+  const activeSel = document.getElementById('activeFilter');
+  const searchIn = document.getElementById('searchInput');
+  const rows = [...document.querySelectorAll('#usersTable tbody tr')];
+
+  function applyFilters(){
+    const role = (roleSel.value || '').toLowerCase();
+    const active = (activeSel.value || '').toLowerCase();
+    const term = (searchIn.value || '').trim().toLowerCase();
+
+    rows.forEach(tr => {
+      const r = tr.dataset.role || '';
+      const a = tr.dataset.active || '';
+      const s = tr.dataset.search || '';
+      const roleOk = !role || r === role;
+      const activeOk = !active || a === active;
+      const searchOk = !term || s.includes(term);
+      tr.classList.toggle('hidden', !(roleOk && activeOk && searchOk));
+    });
+  }
+
+  roleSel.addEventListener('change', applyFilters);
+  activeSel.addEventListener('change', applyFilters);
+  searchIn.addEventListener('input', applyFilters);
+
+  window.confirmDelete = function(role, name){
+    let msg = `Delete ${name}? This is only allowed if there is no dependent data. Otherwise the account will be disabled.`;
+    if (role === 'store') {
+      msg = `Delete store user “${name}”? This will only succeed if the store has no orders. Otherwise the account will be disabled.`;
+    } else if (role === 'delivery') {
+      msg = `Delete delivery partner “${name}”? This will only succeed if they have no delivery history. Otherwise the account will be disabled.`;
+    } else if (role === 'customer') {
+      msg = `Delete customer “${name}”? This will only succeed if the customer has no orders. Otherwise the account will be disabled.`;
+    }
+    return confirm(msg);
+  };
+})();
+</script>
+{% endblock %}

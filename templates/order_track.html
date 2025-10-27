@@ -1,0 +1,778 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="track-order-container">
+  <!-- ===== Header ===== -->
+  <header class="page-header card fade-in">
+    <div class="header-content">
+      <a class="back-button" href="{{ url_for('orders') }}">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+        Back to Orders
+      </a>
+      <h1 class="title">Track Order #{{ order.id }}</h1>
+      <p class="order-subtitle">Monitor your order progress in real-time</p>
+    </div>
+  </header>
+
+  <!-- ===== Overview: Status + Summary ===== -->
+  <section class="status-section grid-2">
+    <!-- Status -->
+    <div class="status-card card lift-in">
+      <div class="card-head">
+        <h3>Current Status</h3>
+      </div>
+      <div class="card-body">
+        <div class="status-badge-large status-{{ order.status|lower|replace('_', '-') }}" id="statusText">
+          {{ order.status.replace('_',' ') }}
+        </div>
+
+        <!-- ====== CANCEL BUTTON (ADDED) ====== -->
+        {% if order.status in ['PLACED', 'CONFIRMED'] %}
+        <form id="cancelForm" method="post" action="{{ url_for('order_cancel', oid=order.id) }}" onsubmit="return confirm('Are you sure you want to cancel this order?');">
+          <button type="submit" class="btn-cancel-order">Cancel Order</button>
+        </form>
+        {% endif %}
+        <!-- ====== END CANCEL BUTTON ====== -->
+
+        <div id="cancelTag" class="alert alert-error" style="display: {% if order.status == 'CANCELLED' %}flex{% else %}none{% endif %};">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="15" y1="9" x2="9" y2="15"></line>
+            <line x1="9" y1="9" x2="15" y2="15"></line>
+          </svg>
+          <span>This order was cancelled by the Store</span>
+        </div>
+
+        <div class="status-details">
+          <div class="row">
+            <span class="label">Payment Status:</span>
+            <span id="paymentStatus" class="value payment-{{ order.payment_status|lower }}">{{ order.payment_status }}</span>
+          </div>
+
+          <div id="dpLine" class="row" style="display: {% if order.delivery_partner_name %}flex{% else %}none{% endif %};">
+            <span class="label">Delivery Partner:</span>
+            <span id="dpName" class="value">{{ order.delivery_partner_name or '' }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="summary-card card lift-in delay-1">
+      <div class="card-head">
+        <h3>Order Summary</h3>
+      </div>
+      <div class="card-body">
+        <div class="sum-row">
+          <span>Items Subtotal</span>
+          <span>₹{{ '%.2f'|format(order.total_amount or 0) }}</span>
+        </div>
+        <div class="sum-row">
+          <span>Delivery Fee</span>
+          <span>₹{{ '%.2f'|format(order.delivery_fee or 0) }}</span>
+        </div>
+        {% if order.tip_amount and order.tip_amount > 0 %}
+        <div class="sum-row">
+          <span>Tip</span>
+          <span>₹{{ '%.2f'|format(order.tip_amount) }}</span>
+        </div>
+        {% endif %}
+        {% if order.distance_km %}
+        <div class="sum-row muted">
+          <span>Distance</span>
+          <span>{{ '%.2f'|format(order.distance_km) }} km</span>
+        </div>
+        {% endif %}
+        <div class="sum-divider"></div>
+        <div class="sum-row total">
+          <span>Grand Total Payable</span>
+          <span>₹{{ '%.2f'|format((order.total_amount or 0) + (order.delivery_fee or 0) + (order.tip_amount or 0)) }}</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Progress Tracker ===== -->
+  <section class="progress-section card fade-in">
+    <div class="card-head">
+      <h3>Progress</h3>
+    </div>
+    {% set steps = ['PLACED','CONFIRMED','OUT_FOR_DELIVERY','DELIVERED'] %}
+    {% set idx = steps.index(order.status) if order.status in steps else 0 %}
+    <div id="tracker" class="progress-tracker"
+         data-steps="{{ steps|length }}"
+         data-current="{{ idx }}"
+         role="group" aria-label="Order progress">
+      <div class="progress-rail" aria-hidden="true">
+        <div id="track-fill" class="progress-fill" style="width: {{ (idx/(steps|length - 1))*100 if (steps|length - 1) > 0 else 0 }}%;"></div>
+      </div>
+
+      <div id="track-dots" class="progress-dots" style="--steps-count: {{ steps|length }}">
+        {% for s in steps %}
+          {% set k = loop.index0 %}
+          <div class="progress-dot {{ 'completed' if k <= idx else '' }} {{ 'current' if k == idx else '' }}"
+               data-step="{{ s }}"
+               aria-current="{{ 'step' if k == idx else 'false' }}"
+               aria-label="{{ s.replace('_',' ') }}">
+            <div class="dot-indicator">
+              <svg class="check" viewBox="0 0 24 24" aria-hidden="true">
+                <polyline points="20 6 9 17 4 12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></polyline>
+              </svg>
+            </div>
+            <span class="dot-label">{{ s.replace('_',' ') }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Items ===== -->
+  <section class="items-section card fade-in">
+    <div class="card-head">
+      <h3>Items</h3>
+    </div>
+
+    <!-- Desktop table -->
+    <div class="table-wrap desktop-only">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Weight (kg)</th>
+            <th>₹/kg</th>
+            <th>Subtotal</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for i in items %}
+          <tr>
+            <td class="prod-cell">
+              <img class="thumb" src="{{ '/' + i.image_path if i.image_path else url_for('static', filename='placeholder.png') }}" alt="">
+              <div class="prod-name">{{ i.name }}</div>
+            </td>
+            <td>{{ '%.2f'|format(i.weight_kg) }}</td>
+            <td>₹ {{ '%.2f'|format(i.unit_price_per_kg) }}</td>
+            <td>₹ {{ '%.2f'|format(i.line_total) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Mobile cards -->
+    <div class="item-cards mobile-only">
+      {% for i in items %}
+      <article class="item-card slide-in">
+        <div class="left">
+          <img class="thumb" src="{{ '/' + i.image_path if i.image_path else url_for('static', filename='placeholder.png') }}" alt="">
+        </div>
+        <div class="right">
+          <div class="name">{{ i.name }}</div>
+          <div class="meta">
+            <span>{{ '%.2f'|format(i.weight_kg) }} kg</span>
+            <span>•</span>
+            <span>₹{{ '%.2f'|format(i.unit_price_per_kg) }}/kg</span>
+          </div>
+          <div class="price">₹{{ '%.2f'|format(i.line_total) }}</div>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+
+    <div class="order-total-summary">
+      <div class="total-row">
+        <span>Items Subtotal</span>
+        <strong>₹ {{ '%.2f'|format(order.total_amount or 0) }}</strong>
+      </div>
+      <div class="total-row">
+        <span>Delivery Fee</span>
+        <strong>₹ {{ '%.2f'|format(order.delivery_fee or 0) }}</strong>
+      </div>
+      {% if order.tip_amount and order.tip_amount > 0 %}
+      <div class="total-row">
+        <span>Tip</span>
+        <strong>₹ {{ '%.2f'|format(order.tip_amount) }}</strong>
+      </div>
+      {% endif %}
+      <div class="divider"></div>
+      <div class="total-row grand">
+        <span>Grand Total Payable</span>
+        <strong>₹ {{ '%.2f'|format((order.total_amount or 0) + (order.delivery_fee or 0) + (order.tip_amount or 0)) }}</strong>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Address ===== -->
+  <section class="address-section card fade-in">
+    <div class="card-head">
+      <h3>Delivery Address</h3>
+    </div>
+    <div class="card-body">
+      {% if address %}
+      <div class="address-grid">
+        <div class="addr-lines">
+          <div>{{ address.line1 }}</div>
+          {% if address.line2 %}<div>{{ address.line2 }}</div>{% endif %}
+          <div>{{ address.city }}, {{ address.state }} {{ address.pincode }}</div>
+        </div>
+        {% if address.latitude and address.longitude %}
+        <div class="addr-actions">
+          <div class="coords muted">Lat: {{ address.latitude }}, Lng: {{ address.longitude }}</div>
+          <a class="map-button" target="_blank"
+             href="https://www.google.com/maps/dir/?api=1&destination={{ address.latitude }},{{ address.longitude }}">
+            Open in Google Maps
+          </a>
+        </div>
+        {% endif %}
+      </div>
+      {% else %}
+      <div class="empty-state">No address snapshot stored for this order.</div>
+      {% endif %}
+    </div>
+  </section>
+
+  <!-- ===== Timeline ===== -->
+  <section class="timeline-section card fade-in">
+    <div class="card-head">
+      <h3>Timeline</h3>
+    </div>
+    <div class="card-body">
+      <ul id="eventsList" class="timeline">
+        {% for e in events %}
+        <li class="timeline-item">
+          <div class="tl-dot"></div>
+          <div class="tl-content">
+            <div class="tl-title">{{ e.status }}</div>
+            {% if e.note %}<div class="tl-note">{{ e.note }}</div>{% endif %}
+            <div class="tl-time muted">{{ e.created_at }}</div>
+          </div>
+        </li>
+        {% else %}
+        <li class="muted">No events yet.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===== Live Map ===== -->
+  {% if address and address.latitude and address.longitude %}
+  <section class="map-section card fade-in">
+    <div class="card-head">
+      <h3>Live Map</h3>
+    </div>
+    <div class="card-body">
+      <div id="liveMap" class="live-map"></div>
+      <div class="map-legend">
+        <div class="legend"><span class="badge dest"></span> Delivery Address</div>
+        <div class="legend"><span class="badge rider"></span> Delivery Partner</div>
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- ===== Feedback (only after delivered) ===== -->
+  {% if order.status == 'DELIVERED' %}
+  <section class="feedback-section card fade-in">
+    <div class="card-head">
+      <h3>Feedback</h3>
+    </div>
+    <div class="card-body">
+      <form id="feedbackForm" method="post" action="{{ url_for('order_feedback', oid=order.id) }}" enctype="multipart/form-data">
+        <p class="muted" style="margin-top:0">Rate your experience and optionally file a complaint.</p>
+
+        <div class="form-group">
+          <label class="form-label">Rate the Store ({{ order.store_name }})</label>
+          <div class="stars" data-name="store_rating" aria-label="Rate store 1 to 5"></div>
+        </div>
+
+        {% if order.delivery_partner_name %}
+        <div class="form-group">
+          <label class="form-label">Rate the Delivery Partner ({{ order.delivery_partner_name }})</label>
+          <div class="stars" data-name="delivery_rating" aria-label="Rate delivery 1 to 5"></div>
+        </div>
+        {% endif %}
+
+        <div class="form-group">
+          <label class="form-label">Rate Products</label>
+          <div class="products-grid">
+            {% for i in items %}
+            <div class="product-rating">
+              <div class="product-header">
+                <img class="thumb tiny" src="{{ '/' + i.image_path if i.image_path else url_for('static', filename='placeholder.png') }}" alt="">
+                <div class="product-name">{{ i.name }}</div>
+              </div>
+              <div class="stars" data-name="product_rating_{{ i.product_id }}" aria-label="Rate {{ i.name }} 1 to 5"></div>
+              <input type="text" name="product_comment_{{ i.product_id }}" class="form-input" placeholder="Optional comment">
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Any complaint?</label>
+          <input type="text" name="complaint_title" class="form-input" placeholder="Short title (optional)">
+          <textarea name="complaint_description" class="form-textarea" rows="3" placeholder="Describe the issue (optional)"></textarea>
+          <label class="file-upload">
+            <span>Attach a photo (optional)</span>
+            <input type="file" name="complaint_image" accept="image/*" capture="environment">
+          </label>
+        </div>
+
+        <label class="checkbox-group">
+          <input type="checkbox" name="received_confirm" value="1" required>
+          <span>I confirm I received my items.</span>
+        </label>
+
+        <div class="form-actions">
+          <button class="submit-button" type="submit">Submit Feedback</button>
+          <span class="form-note muted">Ratings are available here after delivery.</span>
+        </div>
+      </form>
+    </div>
+  </section>
+  {% endif %}
+
+  <div class="action-section fade-in">
+    <a class="back-button" href="{{ url_for('orders') }}">Back to My Orders</a>
+  </div>
+</div>
+
+<!-- ===== JS: Live updates, timeline, map, stars ===== -->
+<script>
+/* Live order polling (fixed selector for progress dots) */
+(function(){
+  const steps = ["PLACED","CONFIRMED","OUT_FOR_DELIVERY","DELIVERED"];
+
+  const elStatusText = document.getElementById("statusText");
+  const elCancelTag  = document.getElementById("cancelTag");
+  const elPayment    = document.getElementById("paymentStatus");
+  const elDpLine     = document.getElementById("dpLine");
+  const elDpName     = document.getElementById("dpName");
+  const fillEl       = document.getElementById("track-fill");
+  const dotsWrap     = document.getElementById("track-dots");
+  const eventsList   = document.getElementById("eventsList");
+  const elCancelForm = document.getElementById("cancelForm"); // ADDED
+
+  let lastStatus = {{ order.status|tojson }};
+  let lastPay    = {{ order.payment_status|tojson }};
+  let lastDP     = {{ (order.delivery_partner_name or '')|tojson }};
+  let lastEventsSig = "{{ events|length }}::{{ events[-1].created_at if events|length>0 else 'none' }}";
+
+  function setProgress(status){
+    const idx = steps.includes(status) ? steps.indexOf(status) : 0;
+    const pct = (idx / (steps.length - 1)) * 100;
+    if (fillEl) fillEl.style.width = pct + "%";
+    if (dotsWrap) {
+      [...dotsWrap.querySelectorAll(".progress-dot")].forEach((d, i) => {
+        d.classList.toggle("completed", i <= idx);
+        d.classList.toggle("current", i === idx);
+        d.setAttribute("aria-current", i === idx ? "step" : "false");
+      });
+    }
+  }
+
+  function escapeHtml(s){
+    return (s || "").replace(/[&<>"']/g, m => ({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+    }[m]));
+  }
+
+  function renderEvents(list){
+    if (!eventsList) return;
+    eventsList.innerHTML = "";
+    if (!list || list.length === 0){
+      const li = document.createElement("li");
+      li.className = "muted";
+      li.textContent = "No events yet.";
+      eventsList.appendChild(li);
+      return;
+    }
+    list.forEach(e => {
+      const li = document.createElement("li");
+      li.className = "timeline-item";
+      const dot = document.createElement("div");
+      dot.className = "tl-dot";
+      const wrap = document.createElement("div");
+      wrap.className = "tl-content";
+      const title = document.createElement("div");
+      title.className = "tl-title";
+      title.textContent = e.status;
+      wrap.appendChild(title);
+      if (e.note){
+        const note = document.createElement("div");
+        note.className = "tl-note";
+        note.textContent = e.note;
+        wrap.appendChild(note);
+      }
+      const time = document.createElement("div");
+      time.className = "tl-time muted";
+      time.textContent = e.created_at;
+      wrap.appendChild(time);
+      li.appendChild(dot);
+      li.appendChild(wrap);
+      eventsList.appendChild(li);
+    });
+  }
+
+  function syncCancelVisibility(status){ // ADDED
+    if (!elCancelForm) return;
+    if (status === "PLACED" || status === "CONFIRMED"){
+      elCancelForm.style.display = "block";
+    } else {
+      elCancelForm.style.display = "none";
+    }
+  }
+
+async function poll(){
+  try{
+    const r = await fetch('{{ url_for("api_order_status", oid=order.id) }}', {
+      cache: "no-store",
+      credentials: "same-origin"
+    });
+
+    // If session expired and server redirected to /login, you'll get HTML.
+    const ct = r.headers.get("content-type") || "";
+    if (!ct.includes("application/json")) {
+      // silently stop or, if you prefer, force reload:
+      // location.reload();
+      return;
+    }
+
+    const j = await r.json();
+    if(!r.ok || !j.ok) return;
+
+      if (j.status !== lastStatus){
+        lastStatus = j.status;
+        if (elStatusText) elStatusText.textContent = j.status.replace(/_/g,' ');
+        if (elCancelTag) elCancelTag.style.display = (j.status === "CANCELLED") ? "flex" : "none";
+        setProgress(j.status);
+      }
+
+      // keep cancel button visibility in sync even if status didn't change
+      syncCancelVisibility(j.status); // ADDED
+
+      if (j.payment_status !== lastPay){
+        lastPay = j.payment_status;
+        if (elPayment) elPayment.textContent = j.payment_status;
+      }
+
+      const dpName = j.delivery_partner_name || "";
+      if (dpName !== lastDP){
+        lastDP = dpName;
+        if (elDpName) elDpName.textContent = dpName;
+        if (elDpLine) elDpLine.style.display = dpName ? "flex" : "none";
+      }
+
+      const sig = (j.events && j.events.length)
+        ? (String(j.events.length) + "::" + j.events[j.events.length-1].created_at)
+        : "0::none";
+      if (sig !== lastEventsSig){
+        lastEventsSig = sig;
+        renderEvents(j.events || []);
+      }
+    }catch(e){}
+  }
+
+  setProgress(lastStatus);
+  syncCancelVisibility(lastStatus); // ADDED (initial)
+  poll();
+  setInterval(poll, 3000);
+})();
+</script>
+
+{% if address and address.latitude and address.longitude %}
+<script>
+/* Live rider map */
+(function(){
+  let map, riderMarker, destMarker;
+  const dest = [{{ address.latitude }}, {{ address.longitude }}];
+
+  function loadLeaflet(cb){
+    if (window.L) { cb(); return; }
+    const lcss = document.createElement('link');
+    lcss.rel = 'stylesheet';
+    lcss.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    document.head.appendChild(lcss);
+    const js = document.createElement('script');
+    js.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    js.onload = cb;
+    document.body.appendChild(js);
+  }
+
+  function initMap(){
+    map = L.map('liveMap');
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+    destMarker = L.marker(dest, { title: 'Delivery Address' }).addTo(map);
+    map.setView(dest, 14);
+  }
+
+  async function fetchRider(){
+    try{
+      const r = await fetch('{{ url_for("delivery_api_get_latest", oid=order.id) }}', {cache:'no-store'});
+      if(!r.ok) return null;
+      const j = await r.json();
+      if(j.ok && j.data) return j.data;
+      return null;
+    }catch(e){ return null; }
+  }
+
+  function setRider(lat, lng){
+    const pos = [lat, lng];
+    if(!riderMarker){
+      const bikeIcon = L.divIcon({
+        className: 'bike-icon',
+        html: '<div class="bike-dot">🏍️</div>',
+        iconSize: [24,24],
+        iconAnchor: [12,12]
+      });
+      riderMarker = L.marker(pos, { icon: bikeIcon, title: 'Rider' }).addTo(map);
+      const group = L.featureGroup([riderMarker, destMarker]);
+      map.fitBounds(group.getBounds().pad(0.35));
+    }else{
+      riderMarker.setLatLng(pos);
+    }
+  }
+
+  async function pollRider(){
+    const d = await fetchRider();
+    if(d && typeof d.latitude === 'number' && typeof d.longitude === 'number'){
+      setRider(d.latitude, d.longitude);
+    }
+  }
+
+  loadLeaflet(() => {
+    initMap();
+    pollRider();
+    setInterval(pollRider, 5000);
+  });
+})();
+</script>
+{% endif %}
+
+<script>
+/* Stars widget + submit guard */
+(function(){
+  function buildStars(container){
+    const name = container.dataset.name;
+    const max = 5;
+    const wrap = document.createElement('div');
+    wrap.className = 'star-wrap';
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = name;
+    input.value = '0';
+    container.appendChild(input);
+    for (let i=1;i<=max;i++){
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'star';
+      b.setAttribute('data-val', i);
+      b.textContent = '★';
+      b.addEventListener('click', () => {
+        input.value = String(i);
+        [...wrap.children].forEach((el) => {
+          el.classList.toggle('on', Number(el.dataset.val) <= i);
+        });
+      });
+      wrap.appendChild(b);
+    }
+    container.appendChild(wrap);
+  }
+  document.querySelectorAll('.stars').forEach(buildStars);
+
+  const f = document.getElementById('feedbackForm');
+  if (f){
+    f.addEventListener('submit', () => {
+      const btn = f.querySelector('button[type="submit"]');
+      if (btn) { btn.disabled = true; btn.textContent = 'Submitting...'; }
+    });
+  }
+})();
+</script>
+
+<style>
+:root{
+  --primary:#2563eb;
+  --primary-dark:#1d4ed8;
+  --success:#059669;
+  --warning:#d97706;
+  --error:#dc2626;
+  --muted:#6b7280;
+  --border:#e5e7eb;
+  --bg:#f8fafc;
+  --card:#ffffff;
+  --text:#1f2937;
+  --shadow:0 1px 3px rgba(0,0,0,.08);
+  --shadow-lg:0 10px 24px rgba(0,0,0,.10);
+}
+
+.track-order-container{max-width:1100px;margin:0 auto;padding:0 16px}
+
+/* Cards & basic */
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow)}
+.card-head{padding:14px 16px;border-bottom:1px solid var(--border)}
+.card-head h3{margin:0;font-size:1.1rem}
+.card-body{padding:16px}
+
+/* Header */
+.page-header{margin-bottom:18px}
+.header-content{padding:18px 0;text-align:center}
+.back-button{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:10px;padding:8px 12px;color:var(--primary);text-decoration:none;transition:.2s}
+.back-button:hover{background:var(--bg);border-color:var(--primary)}
+.title{font-size:2rem;margin:.5rem 0 0;color:var(--text)}
+.order-subtitle{margin:6px 0 0;color:var(--muted)}
+
+/* Grid */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+
+/* Status */
+.status-badge-large{display:inline-block;padding:.7rem 1.1rem;border-radius:10px;font-weight:700;margin-bottom:.6rem}
+.status-placed{background:#fef3c7;color:#92400e}
+.status-confirmed{background:#dbeafe;color:#1e40af}
+.status-out-for-delivery{background:#fce7f3;color:#be185d}
+.status-delivered{background:#d1fae5;color:#065f46}
+.status-cancelled{background:#fee2e2;color:#991b1b}
+
+.alert{display:flex;align-items:center;gap:8px;padding:.6rem .9rem;border-radius:10px;margin:.6rem 0}
+.alert-error{background:#fef2f2;border:1px solid #fecaca;color:#991b1b}
+
+.status-details .row{display:flex;justify-content:space-between;align-items:center;padding:.35rem 0}
+.status-details .label{color:var(--muted)}
+.status-details .value{font-weight:600;color:var(--text)}
+.payment-paid{color:var(--success)}
+.payment-pending{color:var(--warning)}
+.payment-failed{color:var(--error)}
+
+/* Summary */
+.sum-row{display:flex;justify-content:space-between;align-items:center;padding:.45rem 0}
+.sum-row.muted{color:var(--muted)}
+.sum-divider{height:1px;background:var(--border);margin:.4rem 0 .2rem}
+.sum-row.total{font-weight:800;font-size:1.05rem}
+
+/* Progress */
+.progress-section{margin-bottom:16px}
+.progress-tracker{position:relative;padding:22px 6px 8px}
+.progress-rail{position:absolute;left:8px;right:8px;top:34px;height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--primary),var(--success));transition:width .5s ease;border-radius:2px}
+.progress-dots{display:grid;grid-template-columns:repeat(var(--steps-count),1fr);gap:0;position:relative;z-index:2}
+.progress-dot{display:flex;flex-direction:column;align-items:center;text-align:center}
+.dot-indicator{width:26px;height:26px;border-radius:50%;background:#fff;border:3px solid var(--border);display:grid;place-items:center;transition:.3s}
+.dot-indicator .check{width:14px;height:14px;opacity:0;transition:opacity .2s}
+.progress-dot.completed .dot-indicator{background:var(--success);border-color:var(--success)}
+.progress-dot.completed .dot-indicator .check{opacity:1;color:#fff}
+.progress-dot.current .dot-indicator{background:var(--primary);border-color:var(--primary);animation:pulse 1.8s infinite}
+.dot-label{font-size:.85rem;color:var(--muted);margin-top:6px}
+.progress-dot.completed .dot-label,
+.progress-dot.current .dot-label{color:var(--text);font-weight:600}
+
+/* Items */
+.items-section{margin-bottom:16px}
+.table-wrap{border:1px solid var(--border);border-radius:10px;overflow:auto}
+.table{width:100%;border-collapse:collapse;background:#fff}
+.table th{background:var(--bg);text-align:left;padding:12px;border-bottom:1px solid var(--border);font-weight:700}
+.table td{padding:12px;border-bottom:1px solid var(--border)}
+.table tr:last-child td{border-bottom:none}
+.prod-cell{display:flex;align-items:center;gap:10px}
+.thumb{width:54px;height:54px;object-fit:cover;border-radius:10px}
+.order-total-summary{margin-top:12px;padding-top:12px;border-top:2px solid var(--border)}
+.total-row{display:flex;justify-content:space-between;align-items:center;padding:.4rem 0}
+.total-row.grand{font-weight:800}
+.divider{height:1px;background:var(--border);margin:.4rem 0}
+
+/* Mobile item cards */
+.item-cards{display:grid;gap:10px}
+.item-card{display:flex;gap:10px;padding:10px;border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow)}
+.item-card .left .thumb{width:64px;height:64px}
+.item-card .name{font-weight:700}
+.item-card .meta{display:flex;gap:8px;color:var(--muted);font-size:.9rem}
+.item-card .price{margin-top:4px;font-weight:800}
+
+/* Address */
+.address-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:12px}
+.addr-lines{line-height:1.6}
+.addr-actions .coords{margin-bottom:8px}
+.map-button{display:inline-flex;align-items:center;gap:8px;background:var(--primary);color:#fff;padding:10px 14px;border-radius:10px;text-decoration:none}
+.map-button:hover{background:var(--primary-dark)}
+
+/* Timeline */
+.timeline{list-style:none;margin:0;padding:0;position:relative}
+.timeline-item{display:grid;grid-template-columns:20px 1fr;gap:10px;padding:12px 0;border-bottom:1px solid var(--border)}
+.timeline-item:last-child{border-bottom:none}
+.tl-dot{width:12px;height:12px;border-radius:50%;background:var(--primary);margin-top:4px;box-shadow:0 0 0 3px rgba(37,99,235,.15)}
+.tl-title{font-weight:700}
+.tl-note{color:var(--text);margin-top:4px}
+.tl-time{font-size:.85rem}
+
+/* Map */
+.live-map{height:300px;border-radius:10px;overflow:hidden;border:1px solid var(--border)}
+.map-legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
+.legend{display:flex;align-items:center;gap:8px}
+.badge{width:10px;height:10px;border-radius:999px;display:inline-block}
+.badge.dest{background:var(--error)}
+.badge.rider{background:var(--primary)}
+
+/* Feedback */
+.feedback-section{margin-bottom:16px}
+.form-group{margin:12px 0}
+.form-label{font-weight:700;margin-bottom:6px;display:block}
+.products-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.product-rating{border:1px solid var(--border);border-radius:10px;padding:10px}
+.product-header{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.thumb.tiny{width:40px;height:40px;border-radius:8px}
+.product-name{font-weight:600}
+.star-wrap{display:flex;gap:4px}
+.star{font-size:20px;background:transparent;border:none;color:#fbbf24;opacity:.45;cursor:pointer;transition:opacity .2s}
+.star.on{opacity:1}
+.form-input,.form-textarea{width:100%;border:1px solid var(--border);border-radius:10px;padding:10px;font-size:.95rem}
+.form-input:focus,.form-textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+.file-upload{display:block;margin-top:6px}
+.file-upload span{display:inline-flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:var(--bg)}
+.checkbox-group{display:flex;align-items:center;gap:10px;margin:12px 0}
+.form-actions{display:flex;align-items:center;gap:10px}
+.submit-button{background:var(--primary);color:#fff;border:none;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer}
+.submit-button:hover{background:var(--primary-dark)}
+.form-note{font-size:.9rem}
+
+/* Utilities */
+.muted{color:var(--muted)}
+.desktop-only{display:block}
+.mobile-only{display:none}
+.action-section{text-align:center;margin:18px 0}
+
+/* Animations */
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes liftIn{from{opacity:.0;transform:scale(.98)}to{opacity:1;transform:none}}
+@keyframes slideIn{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(37,99,235,.35)}70%{box-shadow:0 0 0 10px rgba(37,99,235,0)}100%{box-shadow:0 0 0 0 rgba(37,99,235,0)}}
+
+.fade-in{animation:fadeIn .35s ease both}
+.lift-in{animation:liftIn .25s ease both}
+.slide-in{animation:slideIn .35s ease both}
+.delay-1{animation-delay:.06s}
+
+/* Responsive */
+@media (max-width: 980px){
+  .grid-2{grid-template-columns:1fr}
+  .address-grid{grid-template-columns:1fr}
+  .desktop-only{display:none}
+  .mobile-only{display:grid}
+}
+
+@media (prefers-reduced-motion: reduce){
+  *{animation:none !important; transition:none !important}
+}
+
+/* ===== New Cancel Button Styling (ADDED) ===== */
+.btn-cancel-order{
+  display:inline-flex;align-items:center;justify-content:center;gap:.4rem;
+  padding:.6rem 1rem;background:#ef4444;color:#fff;border:none;border-radius:10px;
+  font-weight:600;cursor:pointer;transition:filter .2s ease, transform .15s ease;margin-top:.5rem
+}
+.btn-cancel-order:hover{filter:brightness(0.9);transform:translateY(-1px)}
+</style>
+
+{% endblock %}

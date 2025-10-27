@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Create Delivery Partner</h2>
+<form method="post" class="form">
+  <label>Name <input name="name" required></label>
+  <label>Email <input name="email" type="email" required></label>
+  <label>Phone <input name="phone" type="tel" required></label>
+  <label>Temp Password <input name="password" type="text" required></label>
+  <button class="btn">Create</button>
+</form>
+{% endblock %}

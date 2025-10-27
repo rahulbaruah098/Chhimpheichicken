@@ -1,0 +1,754 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .login-container {
+    max-width: 440px;
+    margin: 0 auto;
+    padding: 20px 16px;
+    min-height: calc(100vh - 120px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .login-header {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  .login-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0 0 12px 0;
+    background: linear-gradient(135deg, #1e293b 0%, #3b82f6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.2;
+  }
+
+  .login-subtitle {
+    color: #64748b;
+    font-size: 1rem;
+    margin: 0;
+    line-height: 1.4;
+  }
+
+  .form {
+    background: #fff;
+    padding: 32px 24px;
+    border-radius: 20px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+    transition: all 0.3s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .form:hover {
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+  }
+
+  .form-group {
+    margin-bottom: 20px;
+    position: relative;
+  }
+
+  .form-label {
+    display: block;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 8px;
+    font-size: 0.95rem;
+    transition: all 0.3s ease;
+  }
+
+  .input-group {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .input-icon {
+    position: absolute;
+    left: 16px;
+    color: #64748b;
+    transition: all 0.3s ease;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  .form-input {
+    width: 100%;
+    padding: 16px 16px 16px 48px;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    font-size: 16px; /* Prevents zoom on iOS */
+    transition: all 0.3s ease;
+    background: #f8fafc;
+    position: relative;
+    -webkit-appearance: none;
+    appearance: none;
+    min-height: 54px;
+  }
+
+  .form-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+    transform: translateY(-1px);
+  }
+
+  .form-input:focus + .input-icon {
+    color: #3b82f6;
+    transform: scale(1.1);
+  }
+
+  /* Fix for mobile autofill */
+  .form-input:-webkit-autofill {
+    -webkit-box-shadow: 0 0 0px 1000px #f8fafc inset;
+    -webkit-text-fill-color: #374151;
+    border: 2px solid #e2e8f0;
+  }
+
+  .form-input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0px 1000px #fff inset;
+    border-color: #3b82f6;
+  }
+
+  .password-toggle {
+    position: absolute;
+    right: 16px;
+    background: none;
+    border: none;
+    color: #64748b;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    z-index: 2;
+    -webkit-tap-highlight-color: transparent;
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .password-toggle:hover,
+  .password-toggle:active {
+    color: #3b82f6;
+    background: #f1f5f9;
+    transform: scale(1.1);
+  }
+
+  .btn {
+    width: 100%;
+    padding: 18px 24px;
+    border: none;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #1e293b 0%, #374151 100%);
+    color: white;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    position: relative;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+    min-height: 60px;
+    touch-action: manipulation;
+  }
+
+  .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 30px rgba(30, 41, 59, 0.25);
+    background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
+  }
+
+  .btn:active {
+    transform: translateY(0);
+    transition: transform 0.1s ease;
+  }
+
+  .btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s;
+  }
+
+  .btn:hover::before {
+    left: 100%;
+  }
+
+  .icon-inline {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .form-footer {
+    text-align: center;
+    margin-top: 28px;
+    padding-top: 24px;
+    border-top: 1px solid #f1f5f9;
+  }
+
+  .muted {
+    color: #64748b;
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.4;
+  }
+
+  .links {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+  }
+
+  .link {
+    color: #3b82f6;
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    -webkit-tap-highlight-color: transparent;
+    min-height: 44px;
+    font-size: 0.95rem;
+  }
+
+  .link:hover,
+  .link:active {
+    color: #1d4ed8;
+    background: #f8fafc;
+    transform: translateY(-1px);
+  }
+
+  .features {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin: 28px 0;
+    padding: 20px;
+    background: #f8fafc;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+  }
+
+  .feature {
+    text-align: center;
+    padding: 16px 12px;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .feature:hover,
+  .feature:active {
+    background: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  }
+
+  .feature-icon {
+    font-size: 1.5rem;
+    margin-bottom: 8px;
+    display: block;
+    min-height: 32px;
+  }
+
+  .feature-text {
+    font-size: 0.8rem;
+    color: #64748b;
+    font-weight: 500;
+    line-height: 1.3;
+  }
+
+  .security-note {
+    text-align: center;
+    padding: 16px;
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 12px;
+    margin: 24px 0;
+    color: #0369a1;
+    font-size: 0.9rem;
+    line-height: 1.4;
+  }
+
+  .security-note strong {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    font-size: 0.95rem;
+  }
+
+  /* Mobile-first responsive design */
+  @media (max-width: 480px) {
+    .login-container {
+      padding: 16px 12px;
+      justify-content: flex-start;
+      min-height: auto;
+    }
+
+    .login-header {
+      margin-bottom: 28px;
+    }
+
+    .login-title {
+      font-size: 1.75rem;
+    }
+
+    .login-subtitle {
+      font-size: 0.95rem;
+    }
+
+    .form {
+      padding: 28px 20px;
+      border-radius: 16px;
+    }
+
+    .features {
+      grid-template-columns: 1fr;
+      gap: 10px;
+      padding: 16px;
+      margin: 24px 0;
+    }
+
+    .feature {
+      padding: 14px 12px;
+    }
+
+    .links {
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .link {
+      justify-content: center;
+      padding: 12px 16px;
+    }
+
+    .form-input {
+      padding: 14px 14px 14px 44px;
+      min-height: 52px;
+      font-size: 16px; /* Prevents zoom */
+    }
+
+    .input-icon {
+      left: 14px;
+    }
+
+    .password-toggle {
+      right: 12px;
+      padding: 6px;
+    }
+
+    .btn {
+      padding: 16px 20px;
+      min-height: 56px;
+    }
+  }
+
+  @media (max-width: 360px) {
+    .login-container {
+      padding: 12px 8px;
+    }
+
+    .form {
+      padding: 24px 16px;
+    }
+
+    .login-title {
+      font-size: 1.5rem;
+    }
+
+    .features {
+      padding: 12px;
+    }
+  }
+
+  /* Touch device optimizations */
+  @media (hover: none) and (pointer: coarse) {
+    .form:hover {
+      transform: none;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+    }
+    
+    .btn:hover {
+      transform: none;
+      box-shadow: none;
+    }
+    
+    .btn:active {
+      transform: scale(0.98);
+    }
+    
+    .feature:hover {
+      transform: none;
+    }
+    
+    .feature:active {
+      transform: scale(0.98);
+      background: #fff;
+    }
+    
+    .link:hover {
+      transform: none;
+    }
+    
+    .link:active {
+      transform: scale(0.98);
+      background: #f8fafc;
+    }
+    
+    .password-toggle:hover {
+      transform: none;
+    }
+    
+    .password-toggle:active {
+      transform: scale(1.1);
+      background: #f1f5f9;
+    }
+  }
+
+  /* Loading animation */
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  .loading {
+    animation: spin 1s linear infinite;
+  }
+
+  /* Success animation */
+  @keyframes success {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+  }
+
+  .success {
+    animation: success 0.6s ease;
+  }
+
+  /* Floating animation for features */
+  @keyframes float {
+    0%, 100% { 
+      transform: translateY(0px); 
+    }
+    50% { 
+      transform: translateY(-4px); 
+    }
+  }
+
+  .floating {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    .form,
+    .btn,
+    .feature,
+    .link,
+    .password-toggle,
+    .form-input,
+    .input-icon {
+      transition: none;
+    }
+    
+    .floating {
+      animation: none;
+    }
+    
+    .loading {
+      animation: spin 2s linear infinite;
+    }
+    
+    .btn::before {
+      display: none;
+    }
+  }
+
+  /* Dark mode support */
+  @media (prefers-color-scheme: dark) {
+    .form {
+      background: #1e293b;
+      border-color: #334155;
+      color: #f1f5f9;
+    }
+    
+    .form-input {
+      background: #334155;
+      border-color: #475569;
+      color: #f1f5f9;
+    }
+    
+    .form-input:focus {
+      background: #475569;
+      border-color: #3b82f6;
+    }
+    
+    .features {
+      background: #334155;
+      border-color: #475569;
+    }
+    
+    .feature:hover,
+    .feature:active {
+      background: #475569;
+    }
+    
+    .security-note {
+      background: #1e3a5f;
+      border-color: #3b82f6;
+      color: #bfdbfe;
+    }
+  }
+</style>
+
+<div class="login-container">
+  <div class="login-header">
+    <h1 class="login-title">Welcome Back</h1>
+    <p class="login-subtitle">Sign in to your account to continue shopping</p>
+  </div>
+
+  <form method="post" class="form">
+    <!-- Email Field -->
+    <div class="form-group">
+      <label class="form-label">Email Address</label>
+      <div class="input-group">
+        <span class="input-icon">
+          <lord-icon src="https://cdn.lordicon.com/dhjqydqh.json" trigger="hover" colors="primary:#64748b" style="width:20px;height:20px"></lord-icon>
+        </span>
+        <input name="email" type="email" class="form-input" placeholder="Enter your email" required autocomplete="email">
+      </div>
+    </div>
+
+    <!-- Password Field -->
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <div class="input-group">
+        <span class="input-icon">
+          <lord-icon src="https://cdn.lordicon.com/rhvddzym.json" trigger="hover" colors="primary:#64748b" style="width:20px;height:20px"></lord-icon>
+        </span>
+        <input name="password" type="password" class="form-input" id="passwordInput" placeholder="Enter your password" required autocomplete="current-password">
+        <button type="button" class="password-toggle" id="passwordToggle" aria-label="Toggle password visibility">
+          <lord-icon src="https://cdn.lordicon.com/wloilxuq.json" trigger="hover" colors="primary:#64748b" style="width:18px;height:18px"></lord-icon>
+        </button>
+      </div>
+    </div>
+
+    <!-- Features Section -->
+    <div class="features">
+      <div class="feature">
+        <span class="feature-icon">🚚</span>
+        <div class="feature-text">Fast Delivery</div>
+      </div>
+      <div class="feature">
+        <span class="feature-icon">🔒</span>
+        <div class="feature-text">Secure Payment</div>
+      </div>
+      <div class="feature">
+        <span class="feature-icon">⭐</span>
+        <div class="feature-text">Quality Products</div>
+      </div>
+    </div>
+
+    <!-- Security Note -->
+    <div class="security-note">
+      <strong>
+        <lord-icon src="https://cdn.lordicon.com/ttioogfl.json" trigger="loop" delay="2000" style="width:16px;height:16px"></lord-icon>
+        Your security is our priority
+      </strong>
+      <div>We use advanced encryption to protect your data</div>
+    </div>
+
+    <!-- Submit Button -->
+    <button class="btn" type="submit" id="submitBtn">
+      <span class="icon-inline">
+        <lord-icon src="https://cdn.lordicon.com/kthelypq.json" trigger="loop" delay="2000" style="width:20px;height:20px"></lord-icon>
+      </span>
+      Sign In
+    </button>
+  </form>
+
+  <div class="form-footer">
+    <p class="muted">Don't have an account?</p>
+    <div class="links">
+      <a href="{{ url_for('register') }}" class="link">
+        <lord-icon src="https://cdn.lordicon.com/mecwbjnp.json" trigger="hover" style="width:16px;height:16px"></lord-icon>
+        Create an account
+      </a>
+      <a href="{{ url_for('forgot_password') }}" class="link">
+        <lord-icon src="https://cdn.lordicon.com/ogkplaef.json" trigger="hover" style="width:16px;height:16px"></lord-icon>
+        Forgot password?
+      </a>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const passwordInput = document.getElementById('passwordInput');
+    const passwordToggle = document.getElementById('passwordToggle');
+    const submitBtn = document.getElementById('submitBtn');
+    const form = document.querySelector('.form');
+
+    // Password visibility toggle with touch support
+    function togglePasswordVisibility() {
+      const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+      passwordInput.setAttribute('type', type);
+      
+      const icon = passwordToggle.querySelector('lord-icon');
+      if (type === 'text') {
+        icon.setAttribute('src', 'https://cdn.lordicon.com/oeucdxmu.json');
+        passwordToggle.setAttribute('aria-label', 'Hide password');
+      } else {
+        icon.setAttribute('src', 'https://cdn.lordicon.com/wloilxuq.json');
+        passwordToggle.setAttribute('aria-label', 'Show password');
+      }
+    }
+
+    // Add event listeners for both click and touch
+    passwordToggle.addEventListener('click', togglePasswordVisibility);
+    passwordToggle.addEventListener('touchend', function(e) {
+      e.preventDefault();
+      togglePasswordVisibility();
+    });
+
+    // Form submission with mobile-friendly loading state
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const btnIcon = submitBtn.querySelector('lord-icon');
+      const btnText = submitBtn.querySelector('span:last-child');
+      
+      // Show loading state
+      submitBtn.disabled = true;
+      submitBtn.style.opacity = '0.8';
+      btnIcon.setAttribute('src', 'https://cdn.lordicon.com/xjovhzzh.json');
+      btnIcon.classList.add('loading');
+      if (btnText) btnText.textContent = 'Signing In...';
+      
+      // Simulate form submission (replace with actual form submission)
+      setTimeout(() => {
+        // Remove loading state
+        btnIcon.classList.remove('loading');
+        btnIcon.setAttribute('src', 'https://cdn.lordicon.com/grnqjqrb.json');
+        btnIcon.classList.add('success');
+        
+        // Submit the actual form after animation
+        setTimeout(() => {
+          form.submit();
+        }, 1000);
+      }, 1500);
+    });
+
+    // Enhanced touch interactions for features
+    const features = document.querySelectorAll('.feature');
+    features.forEach((feature, index) => {
+      feature.style.animationDelay = `${index * 0.2}s`;
+      feature.classList.add('floating');
+      
+      // Add touch feedback
+      feature.addEventListener('touchstart', function() {
+        this.style.transform = 'scale(0.95)';
+      });
+      
+      feature.addEventListener('touchend', function() {
+        this.style.transform = '';
+      });
+    });
+
+    // Improved input focus for mobile
+    const inputs = document.querySelectorAll('.form-input');
+    inputs.forEach(input => {
+      input.addEventListener('focus', function() {
+        this.parentElement.parentElement.classList.add('focused');
+        // Scroll into view on mobile
+        if (window.innerWidth < 768) {
+          setTimeout(() => {
+            this.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 300);
+        }
+      });
+      
+      input.addEventListener('blur', function() {
+        this.parentElement.parentElement.classList.remove('focused');
+      });
+    });
+
+    // Prevent zoom on input focus (iOS)
+    document.addEventListener('touchstart', function() {
+      // This helps prevent zoom on input focus
+    }, { passive: true });
+
+    // Handle viewport height changes on mobile
+    function setVH() {
+      const vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty('--vh', `${vh}px`);
+    }
+
+    setVH();
+    window.addEventListener('resize', setVH);
+    window.addEventListener('orientationchange', setVH);
+  });
+
+  // Add CSS custom properties for mobile viewport
+  const viewportStyle = document.createElement('style');
+  viewportStyle.textContent = `
+    :root {
+      --vh: 1vh;
+    }
+    
+    .login-container {
+      min-height: calc(var(--vh, 1vh) * 100 - 120px);
+    }
+    
+    @media (max-width: 480px) {
+      .login-container {
+        min-height: auto;
+      }
+    }
+  `;
+  document.head.appendChild(viewportStyle);
+</script>
+
+<!-- LordIcon Script with error handling -->
+<script src="https://cdn.lordicon.com/lordicon.js"></script>
+<script>
+  // Fallback for LordIcons if they fail to load
+  document.addEventListener('DOMContentLoaded', function() {
+    const icons = document.querySelectorAll('lord-icon');
+    icons.forEach(icon => {
+      icon.addEventListener('error', function() {
+        console.log('Icon failed to load:', this.getAttribute('src'));
+        // You could add fallback emoji or SVG here
+      });
+    });
+  });
+</script>
+{% endblock %}

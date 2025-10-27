@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Privacy Policy</h2>
+<p class="muted">Last updated: {{ datetime.utcnow().date() }}</p>
+
+<h3>What we collect</h3>
+<ul>
+  <li>Account info (name, email, phone)</li>
+  <li>Order details (items, amounts, delivery address)</li>
+  <li>Device and usage data (cookies, IP, basic analytics)</li>
+</ul>
+
+<h3>How we use it</h3>
+<ul>
+  <li>To process orders and deliver your items</li>
+  <li>To provide customer support and safety features</li>
+  <li>To improve products, performance, and reliability</li>
+</ul>
+
+<h3>Sharing</h3>
+<p>We share limited data with service providers (e.g., payments, logistics) under strict confidentiality and only for the stated purposes.</p>
+
+<h3>Your controls</h3>
+<ul>
+  <li>Update profile and addresses in <a href="{{ url_for('profile') }}">Profile</a></li>
+  <li>Request data export or deletion at <a href="mailto:support@chhimphei.local">support@chhimphei.local</a></li>
+</ul>
+
+<h3>Data retention</h3>
+<p>We keep data as long as necessary to provide our services and meet legal obligations.</p>
+
+<h3>Contact</h3>
+<p>Questions? Email <a href="mailto:privacy@chhimphei.local">privacy@chhimphei.local</a>.</p>
+{% endblock %}

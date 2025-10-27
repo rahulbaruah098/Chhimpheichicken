@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="store-wrap">
+  <header class="store-head">
+    <h1>{{ store.store_name }}</h1>
+    {% if store.address %}<p class="muted">{{ store.address }}</p>{% endif %}
+  </header>
+
+  {% if products %}
+  <section class="grid pro-grid">
+    {% for p in products %}
+    <article class="pro-card">
+      <a class="pro-media" href="{{ url_for('product_detail', pid=p.id) }}">
+        <img src="{{ '/' + p.image_path if p.image_path else url_for('static', filename='placeholder.png') }}" alt="{{ p.name }}">
+        <span class="pro-tag">In stock</span>
+      </a>
+      <div class="pro-body">
+        <div class="pro-title">
+          <h3><a href="{{ url_for('product_detail', pid=p.id) }}">{{ p.name }}</a></h3>
+          <span class="price">₹ {{ '%.2f'|format(p.price_per_kg) }}<small>/kg</small></span>
+        </div>
+        <div class="pro-sub muted">{{ p.store_name }}</div>
+
+        {% if user %}
+        <form class="pro-cart" method="post" action="{{ url_for('api_cart_add') }}" onsubmit="return addToCart(this);">
+          <input type="hidden" name="product_id" value="{{ p.id }}">
+          <label class="w-input">
+            <span>Weight (kg)</span>
+            <input type="number" name="weight_kg" min="0.25" step="0.25" value="1.0" required>
+          </label>
+          <button class="btn-buy" type="submit">Add to Cart</button>
+        </form>
+        {% else %}
+        <div class="pro-foot"><a class="btn-outline" href="{{ url_for('login') }}">Login to buy</a></div>
+        {% endif %}
+      </div>
+    </article>
+    {% endfor %}
+  </section>
+  {% else %}
+    <p class="muted">This store currently has no available products.</p>
+  {% endif %}
+</section>
+
+<style>
+.store-wrap{max-width:1100px;margin:0 auto;padding:10px 16px}
+.store-head h1{margin:8px 0 4px}
+.muted{color:#6b7280}
+.pro-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+.pro-card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+.pro-media{position:relative;display:block;line-height:0}
+.pro-media img{width:100%;height:180px;object-fit:cover}
+.pro-tag{position:absolute;left:10px;top:10px;background:rgba(17,17,17,.85);color:#fff;font-size:.75rem;padding:4px 8px;border-radius:999px}
+.pro-body{padding:12px;display:flex;flex-direction:column;gap:8px}
+.pro-title{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.pro-title h3{margin:0;font-size:1.05rem}
+.pro-title h3 a{text-decoration:none;color:inherit}
+.price{font-weight:800}
+.price small{font-weight:600;color:#666}
+.pro-sub{font-size:.92rem}
+.pro-cart{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:2px}
+.w-input{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px;border:1px solid #e5e7eb;border-radius:10px}
+.w-input input{max-width:120px}
+.btn-buy{background:#111;color:#fff;border:none;border-radius:10px;padding:10px 12px;cursor:pointer}
+.btn-outline{display:inline-block;padding:10px 12px;border-radius:10px;border:1px solid #e5e7eb;text-decoration:none;color:#111}
+</style>
+
+<script>
+async function addToCart(form) {
+  try {
+    const fd = new FormData(form);
+    const res = await fetch(form.action, {method:'POST', body: fd});
+    const j = await res.json();
+    if (j.ok) {
+      const t = document.createElement('div');
+      t.textContent = 'Added to cart';
+      Object.assign(t.style, {
+        position:'fixed', bottom:'16px', right:'16px', background:'#111', color:'#fff',
+        padding:'10px 12px', borderRadius:'10px', zIndex:9999, boxShadow:'0 8px 20px rgba(0,0,0,.25)'
+      });
+      document.body.appendChild(t);
+      setTimeout(()=>t.remove(), 1400);
+      return false;
+    }
+  } catch(e){}
+  return true;
+}
+</script>
+
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Verify OTP</h2>
+<form method="post" class="form">
+  <label>Enter 6-digit OTP <input name="code" pattern="\d{6}" maxlength="6" required></label>
+  <button class="btn" type="submit">Verify</button>
+</form>
+<button class="btn-ghost" id="resendBtn">Resend OTP</button>
+<script>
+document.getElementById('resendBtn').addEventListener('click', async () => {
+  const res = await fetch('{{ url_for("resend_otp") }}', {method:'POST'});
+  const data = await res.json();
+  alert(data.ok ? 'OTP resent!' : (data.msg || 'Failed to resend'));
+});
+</script>
+{% endblock %}

@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Admin Dashboard</h2>
+
+<!-- ======= KPI CARDS ======= -->
+<style>
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:14px 0 18px}
+.kpi{border:1px solid var(--line);border-radius:14px;padding:14px;background:#fff}
+.kpi .label{color:#666;font-size:.9rem}
+.kpi .value{font-size:1.6rem;font-weight:700;margin-top:4px}
+.kpi .sub{color:#888;font-size:.85rem;margin-top:2px}
+
+.section{margin-top:26px}
+.table{width:100%;border-collapse:collapse;background:#fff;border-radius:14px;overflow:hidden;border:1px solid var(--line)}
+.table th,.table td{border-bottom:1px solid #eee;padding:10px 12px;text-align:left}
+.table th{background:#fafafa;font-weight:600;color:#555}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;background:#f2f2f2;font-size:.85rem}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 14px}
+.toolbar a{padding:8px 10px;border:1px solid var(--line);border-radius:10px;text-decoration:none}
+.muted{color:#666}
+.nowrap{white-space:nowrap}
+.rating{display:inline-flex;gap:2px;font-size:18px;line-height:1;vertical-align:middle}
+.rating .dim{opacity:.35}
+.tnum{font-variant-numeric:tabular-nums}
+
+/* Performance section */
+.grid-perf{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:12px}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px}
+.h-row{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.h-row h4{margin:0}
+.tag{display:inline-block;border:1px solid #e5e7eb;border-radius:999px;padding:2px 8px;font-size:.78rem;background:#f9fafb;color:#374151}
+.mini{font-size:.9rem;color:#6b7280}
+.error{color:#ef4444}
+</style>
+
+<div class="kpis">
+  <div class="kpi">
+    <div class="label">Users</div>
+    <div class="value tnum">{{ metrics.users }}</div>
+    <div class="sub">All roles</div>
+  </div>
+  <div class="kpi">
+    <div class="label">Stores</div>
+    <div class="value tnum">{{ metrics.stores }}</div>
+    <div class="sub">Active + Pending</div>
+  </div>
+  <div class="kpi">
+    <div class="label">Products</div>
+    <div class="value tnum">{{ metrics.products }}</div>
+    <div class="sub">Catalog size</div>
+  </div>
+  <div class="kpi">
+    <div class="label">Orders</div>
+    <div class="value tnum">{{ metrics.orders }}</div>
+    <div class="sub">All-time</div>
+  </div>
+  <div class="kpi">
+    <div class="label">GMV</div>
+    <div class="value tnum">₹ {{ '%.2f'|format(metrics.gmv or 0) }}</div>
+    <div class="sub">Sum of order totals</div>
+  </div>
+</div>
+
+<!-- ======= QUICK ACTIONS ======= -->
+<div class="toolbar">
+  <a href="{{ url_for('admin_approvals') }}">Pending Approvals</a>
+  <a href="{{ url_for('admin_users') }}">Manage Users</a>
+  <a href="{{ url_for('admin_complaints') }}">Complaints</a>
+  <a href="{{ url_for('admin_create_store') }}">Create Store</a>
+  <a href="{{ url_for('admin_create_delivery') }}">Create Delivery Partner</a>
+  <a href="{{ url_for('admin_transactions_csv') }}">Export Transactions CSV</a>
+
+</div>
+
+<!-- ======= STORES PERFORMANCE ======= -->
+<div class="section">
+  <h3>Stores Performance</h3>
+  <p class="muted" style="margin-top:-6px">Revenue is from <em>order totals</em>. Rating loads automatically if store IDs are provided.</p>
+
+  <table class="table" id="storesTable">
+    <thead>
+      <tr>
+        <th>Store</th>
+        <th class="nowrap">Orders</th>
+        <th class="nowrap">Revenue (₹)</th>
+        <th class="nowrap">Avg Rating</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in by_store %}
+      <tr
+        {% if 'store_id' in s.keys() %}
+  data-store-id="{{ s['store_id'] }}"
+{% endif %}
+
+      >
+        <td>{{ s.store_name }}</td>
+        <td class="tnum">{{ s.orders }}</td>
+        <td class="tnum">{{ '%.2f'|format(s.revenue or 0) }}</td>
+        <td class="rating-cell">
+          <span class="muted">—</span>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" class="muted">No stores found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- ======= PERFORMANCE & QUALITY (Optional Data) ======= -->
+<div class="section">
+  <div class="h-row">
+    <h3>Performance & Quality</h3>
+    <span class="mini">{{ complaints_window_label|default('(last 30 days)') }}</span>
+  </div>
+
+  <div class="grid-perf">
+    <!-- Top Rated Stores -->
+    <div class="card">
+      <div class="h-row">
+        <h4>Top Rated Stores</h4>
+        <span class="tag">avg ⭐ with count</span>
+      </div>
+      <table class="table" style="margin-top:8px">
+        <thead>
+          <tr>
+            <th>Store</th>
+            <th class="nowrap">Avg ⭐</th>
+            <th>Ratings</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set trs = top_rated_stores|default([]) %}
+          {% for s in trs %}
+            <tr>
+              <td>{{ s.store_name }}</td>
+              <td class="tnum">{{ '%.2f'|format(s.avg_rating or 0) }}</td>
+              <td class="tnum">{{ s.rating_count or 0 }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="3" class="muted">No store ratings yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Top Rated Products -->
+    <div class="card">
+      <div class="h-row">
+        <h4>Top Rated Products</h4>
+        <span class="tag">avg ⭐ with count</span>
+      </div>
+      <table class="table" style="margin-top:8px">
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th class="nowrap">Avg ⭐</th>
+            <th>Ratings</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set trp = top_rated_products|default([]) %}
+          {% for p in trp %}
+            <tr>
+              <td>{{ p.product_name }}</td>
+              <td class="tnum">{{ '%.2f'|format(p.avg_rating or 0) }}</td>
+              <td class="tnum">{{ p.rating_count or 0 }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="3" class="muted">No product ratings yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Most Complained Delivery Partners -->
+    <div class="card">
+      <div class="h-row">
+        <h4>Most Complained Delivery Partners</h4>
+        <span class="tag">complaints count</span>
+      </div>
+      <table class="table" style="margin-top:8px">
+        <thead>
+          <tr>
+            <th>Delivery Partner</th>
+            <th>Complaints</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set tdc = top_delivery_complaints|default([]) %}
+          {% for d in tdc %}
+            <tr>
+              <td>{{ d.delivery_name or ('ID ' ~ d.user_id) }}</td>
+              <td class="tnum error">{{ d.complaints or 0 }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="2" class="muted">No delivery complaints in period.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Most Complained Stores -->
+    <div class="card">
+      <div class="h-row">
+        <h4>Most Complained Stores</h4>
+        <span class="tag">complaints count</span>
+      </div>
+      <table class="table" style="margin-top:8px">
+        <thead>
+          <tr>
+            <th>Store</th>
+            <th>Complaints</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set tsc = top_store_complaints|default([]) %}
+          {% for s in tsc %}
+            <tr>
+              <td>{{ s.store_name or ('ID ' ~ s.store_id) }}</td>
+              <td class="tnum error">{{ s.complaints or 0 }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="2" class="muted">No store complaints in period.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ======= TIPS ======= -->
+<div class="section">
+  <h3>Tips</h3>
+  <ul class="muted">
+    <li>Use <strong>Complaints</strong> to review issues and change status (OPEN/IN_REVIEW/RESOLVED).</li>
+    <li>Use <strong>Manage Users</strong> to disable or delete (store/delivery/customer) accounts. Deletions are guarded when history exists.</li>
+  </ul>
+</div>
+
+<script>
+// Gracefully enhance: if table rows have data-store-id, fetch ratings.
+(async function(){
+  const rows = document.querySelectorAll('#storesTable tbody tr[data-store-id]');
+  if (!rows.length) return;
+  for (const tr of rows) {
+    const sid = tr.getAttribute('data-store-id');
+    try{
+      const res = await fetch(`/api/ratings/store/${encodeURIComponent(sid)}`, {cache:'no-store'});
+      if(!res.ok) continue;
+      const j = await res.json();
+      const cell = tr.querySelector('.rating-cell');
+      if(j && j.ok){
+        const avg = Number(j.avg || 0);
+        const count = Number(j.count || 0);
+        cell.innerHTML = renderStars(avg) + ` <span class="muted">(${count})</span>`;
+      }
+    }catch(_){}
+  }
+
+  function renderStars(avg){
+    const full = Math.floor(avg);
+    const stars = Array.from({length:5}, (_,i)=>{
+      const solid = i < full ? '' : 'dim';
+      return `<span class="${solid}">★</span>`;
+    }).join('');
+    return `<span class="rating" title="${avg.toFixed(2)} / 5">${stars}</span>`;
+  }
+})();
+</script>
+{% endblock %}

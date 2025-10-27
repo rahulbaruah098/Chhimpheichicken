@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Serviceable pincodes</h2>
+
+<form method="post" action="{{ url_for('admin_pincodes_add') }}" style="margin:12px 0; display:flex; gap:8px;">
+  <input type="text" name="pincode" placeholder="e.g. 796018" required pattern="\d+">
+  <input type="text" name="label" placeholder="Label (optional)">
+  <button type="submit">Add</button>
+</form>
+
+<table class="table">
+  <thead><tr><th>Pincode</th><th>Label</th><th></th></tr></thead>
+  <tbody>
+    {% for r in pincodes %}
+    <tr>
+      <td>{{ r.pincode }}</td>
+      <td>{{ r.label }}</td>
+      <td>
+        <form method="post" action="{{ url_for('admin_pincodes_delete', pin=r.pincode) }}" onsubmit="return confirm('Remove {{ r.pincode }}?')">
+          <button type="submit">Delete</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

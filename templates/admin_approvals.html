@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Pending Approvals</h2>
+<table class="table">
+  <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Requested</th><th>Action</th></tr></thead>
+  <tbody>
+    {% for u in pending %}
+    <tr>
+      <td>{{ u.name }}</td><td>{{ u.email }}</td><td>{{ u.phone }}</td><td>{{ u.role }}</td><td>{{ u.created_at }}</td>
+      <td>
+        <form method="post" style="display:inline">
+          <input type="hidden" name="user_id" value="{{ u.id }}">
+          <button name="action" value="approve" class="btn">Approve</button>
+          <button name="action" value="reject" class="btn-ghost">Reject</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
