@@ -370,35 +370,41 @@
   <div class="card" style="padding:24px; position:sticky; top:24px;">
     <h3 style="margin:0 0 16px 0">Buy Now</h3>
 
-    <form id="buyForm" class="buy-form" onsubmit="return false;">
-      <input type="hidden" name="product_id" value="{{ product.id }}"/>
+    {% if user %}
+      <form id="buyForm" class="buy-form" onsubmit="return false;">
+        <input type="hidden" name="product_id" value="{{ product.id }}"/>
 
-      <div class="qty">
-        <label for="weight_kg" class="small">Weight (kg)</label>
-        <input id="weight_kg" name="weight_kg" type="number" step="0.25" min="0.25" value="1">
-      </div>
-
-      <div class="small muted" style="margin-bottom:16px;">
-        Minimum order 0.25 kg. Price updates automatically.
-      </div>
-
-      <div class="calculation-box">
-        <div class="small muted">Estimated item total</div>
-        <div class="calculation-total">
-          ₹ <span id="estTotal">0.00</span>
+        <div class="qty">
+          <label for="weight_kg" class="small">Weight (kg)</label>
+          <input id="weight_kg" name="weight_kg" type="number" step="0.25" min="0.25" value="1">
         </div>
-        <div class="small muted">Delivery fee shown at checkout</div>
-      </div>
 
+        <div class="small muted" style="margin-bottom:16px;">
+          Minimum order 0.25 kg. Price updates automatically.
+        </div>
+
+        <div class="calculation-box">
+          <div class="small muted">Estimated item total</div>
+          <div class="calculation-total">
+            ₹ <span id="estTotal">0.00</span>
+          </div>
+          <div class="small muted">Delivery fee shown at checkout</div>
+        </div>
+
+        <div class="actions">
+          <button class="btn-ghost" id="btnAdd">Add to Cart</button>
+          <button class="btn" id="btnBuy">Buy Now</button>
+        </div>
+      </form>
+
+      <div class="small muted" style="text-align:center; margin-top:8px">
+        Tip: Use "Buy Now" to proceed directly to checkout
+      </div>
+    {% else %}
       <div class="actions">
-        <button class="btn-ghost" id="btnAdd">Add to Cart</button>
-        <button class="btn" id="btnBuy">Buy Now</button>
+        <a class="btn" href="{{ url_for('login') }}">Login to buy</a>
       </div>
-    </form>
-
-    <div class="small muted" style="text-align:center; margin-top:8px">
-      Tip: Use "Buy Now" to proceed directly to checkout
-    </div>
+    {% endif %}
   </div>
 </div>
 
@@ -429,6 +435,7 @@
 
 <script>
 (function(){
+  {% if user %}
   const pricePerKg = {{ '%.2f'|format(product.price_per_kg) }};
   const weightEl = document.getElementById('weight_kg');
   const estTotalEl = document.getElementById('estTotal');
@@ -452,7 +459,6 @@
     btnAdd.disabled = true; 
     btnBuy.disabled = true;
     
-    // Add loading state
     const originalAddText = btnAdd.textContent;
     const originalBuyText = btnBuy.textContent;
     btnAdd.textContent = 'Adding...';
@@ -469,7 +475,7 @@
         if(redirectAfter){
           window.location.href = '{{ url_for("checkout") }}';
         }else{
-          // Enhanced toast notification
+          // Existing toast notification (unchanged design)
           (function(){
             let h = document.getElementById('toast-host');
             if(!h){ 
@@ -490,7 +496,7 @@
           })();
         }
       }else{
-        alert(j.msg || 'Failed to add to cart. Please try again.');
+        alert(j?.msg || j?.error || 'Failed to add to cart. Please try again.');
       }
     }catch(e){
       alert('Network error while adding to cart. Please check your connection.');
@@ -504,6 +510,7 @@
 
   btnAdd.addEventListener('click', (e)=>{ e.preventDefault(); addToCart(false); });
   btnBuy.addEventListener('click', (e)=>{ e.preventDefault(); addToCart(true); });
+  {% endif %}
 })();
 </script>
 {% endblock %}
