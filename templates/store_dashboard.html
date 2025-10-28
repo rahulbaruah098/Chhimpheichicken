@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<!-- (Optional) If you keep this, ensure it doesn't also inject rows; our script avoids duplicates anyway -->
+<!-- Realtime alerts (safe to keep even if included elsewhere) -->
 <script defer src="{{ url_for('static', filename='js/alerts.js') }}"></script>
 
 <h2>Store Dashboard — {{ store.store_name }}</h2>
@@ -14,6 +14,7 @@
 <button id="enableSound" class="btn" style="margin:10px 0;background:#16a34a;color:white">
   🔔 Enable Order Notifications
 </button>
+<noscript><p class="muted">Enable JavaScript to receive live order alerts.</p></noscript>
 
 <!-- =====================
      Add Product
@@ -21,8 +22,8 @@
 <h3>Add Product</h3>
 <form method="post" action="{{ url_for('store_product_new') }}" class="form" enctype="multipart/form-data">
   <label>Name <input name="name" required></label>
-  <label>Price per kg (₹) <input name="price_per_kg" type="number" step="0.01" required></label>
-  <label>Stock (kg) <input name="stock_kg" type="number" step="0.01" required></label>
+  <label>Price per kg (₹) <input name="price_per_kg" type="number" step="0.01" min="0" required></label>
+  <label>Stock (kg) <input name="stock_kg" type="number" step="0.01" min="0" required></label>
   <label>Image (upload or capture)
     <input type="file" name="image" accept="image/*" capture="environment">
   </label>
@@ -35,23 +36,58 @@
 <h3>Products</h3>
 <table class="table">
   <thead>
-    <tr><th>Name</th><th>₹/kg</th><th>Stock (kg)</th><th>Active</th><th>Image</th><th></th></tr>
+    <tr>
+      <th>Name</th>
+      <th>₹/kg</th>
+      <th>Stock (kg)</th>
+      <th>Active</th>
+      <th>Image</th>
+      <th style="min-width:360px">Actions</th>
+    </tr>
   </thead>
   <tbody>
-  {% for p in products %}
-    <tr>
-      <td>{{ p.name }}</td>
-      <td>{{ '%.2f'|format(p.price_per_kg) }}</td>
-      <td>{{ '%.2f'|format(p.stock_kg) }}</td>
-      <td>{{ 'Yes' if p.is_active else 'No' }}</td>
-      <td>{% if p.image_path %}<img class="thumb" src="/{{ p.image_path }}" alt="">{% endif %}</td>
-      <td>
-        <form method="post" action="{{ url_for('store_product_toggle', pid=p.id) }}">
-          <button class="btn-ghost">Toggle Active</button>
-        </form>
-      </td>
-    </tr>
-  {% endfor %}
+  {% if products and products|length %}
+    {% for p in products %}
+      {% set low = (p.stock_kg is not none and p.stock_kg <= 1.0) %}
+      <tr>
+        <td>
+          {{ p.name }}
+          <div>
+            <span class="stock-pill {{ 'low' if low else '' }}">
+              Left: {{ '%.2f'|format(p.stock_kg or 0) }} kg
+            </span>
+          </div>
+        </td>
+        <td>{{ '%.2f'|format(p.price_per_kg or 0) }}</td>
+        <td>{{ '%.2f'|format(p.stock_kg or 0) }}</td>
+        <td>{{ 'Yes' if p.is_active else 'No' }}</td>
+        <td>
+          {% if p.image_path %}
+            <img class="thumb" src="/{{ p.image_path }}" alt="Product image">
+          {% else %}
+            <span class="muted">—</span>
+          {% endif %}
+        </td>
+        <td>
+          <div class="row-actions">
+            <!-- Toggle active -->
+            <form method="post" action="{{ url_for('store_product_toggle', pid=p.id) }}">
+              <button class="btn-ghost" title="Toggle active">{{ 'Deactivate' if p.is_active else 'Activate' }}</button>
+            </form>
+
+            <!-- Add stock (increment) -->
+            <form method="post" action="{{ url_for('store_product_add_stock', pid=p.id) }}" class="add-stock-form">
+              <label class="sr-only" for="add_kg_{{ p.id }}">Add stock (kg)</label>
+              <input id="add_kg_{{ p.id }}" name="add_kg" type="number" step="0.01" min="0.01" placeholder="+0.50" required>
+              <button class="btn" title="Add to stock">Add Stock</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+    {% endfor %}
+  {% else %}
+    <tr><td colspan="6" class="muted" style="text-align:center">No products yet. Add your first product above.</td></tr>
+  {% endif %}
   </tbody>
 </table>
 
@@ -73,51 +109,56 @@
     </tr>
   </thead>
   <tbody id="orders-list">
-  {% for o in orders %}
-    <!-- 👇 add created_at so JS can compute a safe initial "since" -->
-    <tr data-order-id="{{ o.id }}" data-created-at="{{ o.created_at }}">
-      <td>{{ o.id }}</td>
-      <td>{{ o.customer_name }}</td>
-      <td>{{ o.customer_phone or '—' }}</td>
-      <td>{{ '%.2f'|format(o.total_amount) }}</td>
-      <td>{{ o.status }}</td>
-      <td>{{ o.payment_status }}</td>
-      <td class="muted">
-        {% if o.addr_line1 %}
-          {{ o.addr_line1 }}{% if o.addr_line2 %}, {{ o.addr_line2 }}{% endif %},
-          {{ o.addr_city }}, {{ o.addr_state }} {{ o.addr_pincode }}
-          {% if o.addr_lat and o.addr_lng %}<br><small>({{ o.addr_lat }}, {{ o.addr_lng }})</small>{% endif %}
-        {% else %}
-          —
-        {% endif %}
-        <div style="margin-top:6px">
-          <a class="btn-ghost" href="{{ url_for('order_track', oid=o.id) }}">View items & track</a>
-        </div>
-      </td>
-      <td style="min-width:260px">
-        <div class="muted" style="margin:6px 0">
-          Total Payable:
-          <strong>₹ {%
-            set total_payable = (o.total_amount or 0) + (o.delivery_fee or 0) + (o.tip_amount or 0)
-          %}{{ '%.2f'|format(total_payable) }}</strong>
-          {% if o.tip_amount and o.tip_amount > 0 %}
-            <span class="tag">includes tip ₹{{ '%.2f'|format(o.tip_amount) }}</span>
+  {% if orders and orders|length %}
+    {% for o in orders %}
+      <!-- include created_at so JS can compute an initial "since" -->
+      <tr data-order-id="{{ o.id }}" data-created-at="{{ o.created_at }}">
+        <td>{{ o.id }}</td>
+        <td>{{ o.customer_name }}</td>
+        <td>{{ o.customer_phone or '—' }}</td>
+        <td>{{ '%.2f'|format(o.total_amount or 0) }}</td>
+        <td>{{ o.status }}</td>
+        <td>{{ o.payment_status }}</td>
+        <td class="muted">
+          {% if o.addr_line1 %}
+            {{ o.addr_line1 }}{% if o.addr_line2 %}, {{ o.addr_line2 }}{% endif %},
+            {{ o.addr_city }}, {{ o.addr_state }} {{ o.addr_pincode }}
+            {% if o.addr_lat is not none and o.addr_lng is not none %}
+              <br><small>({{ o.addr_lat }}, {{ o.addr_lng }})</small>
+            {% endif %}
+          {% else %}
+            —
           {% endif %}
-        </div>
+          <div style="margin-top:6px">
+            <a class="btn-ghost" href="{{ url_for('order_track', oid=o.id) }}">View items & track</a>
+          </div>
+        </td>
+        <td style="min-width:260px">
+          <div class="muted" style="margin:6px 0">
+            {% set total_payable = (o.total_amount or 0) + (o.delivery_fee or 0) + (o.tip_amount or 0) %}
+            Total Payable:
+            <strong>₹ {{ '%.2f'|format(total_payable) }}</strong>
+            {% if o.tip_amount and o.tip_amount > 0 %}
+              <span class="tag">includes tip ₹{{ '%.2f'|format(o.tip_amount) }}</span>
+            {% endif %}
+          </div>
 
-        <form method="post" action="{{ url_for('store_order_status', oid=o.id) }}">
-          <select name="status">
-            <option {{ 'selected' if o.status=='PLACED' }}>PLACED</option>
-            <option {{ 'selected' if o.status=='CONFIRMED' }}>CONFIRMED</option>
-            <option {{ 'selected' if o.status=='OUT_FOR_DELIVERY' }}>OUT_FOR_DELIVERY</option>
-            <option {{ 'selected' if o.status=='DELIVERED' }}>DELIVERED</option>
-            <option {{ 'selected' if o.status=='CANCELLED' }}>CANCELLED</option>
-          </select>
-          <button class="btn">Update</button>
-        </form>
-      </td>
-    </tr>
-  {% endfor %}
+          <form method="post" action="{{ url_for('store_order_status', oid=o.id) }}">
+            <select name="status">
+              <option {{ 'selected' if o.status=='PLACED' }}>PLACED</option>
+              <option {{ 'selected' if o.status=='CONFIRMED' }}>CONFIRMED</option>
+              <option {{ 'selected' if o.status=='OUT_FOR_DELIVERY' }}>OUT_FOR_DELIVERY</option>
+              <option {{ 'selected' if o.status=='DELIVERED' }}>DELIVERED</option>
+              <option {{ 'selected' if o.status=='CANCELLED' }}>CANCELLED</option>
+            </select>
+            <button class="btn">Update</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+  {% else %}
+    <tr><td colspan="8" class="muted" style="text-align:center">No orders yet. New orders will appear here instantly.</td></tr>
+  {% endif %}
   </tbody>
 </table>
 
@@ -126,7 +167,6 @@
      ===================== -->
 <script>
   document.addEventListener('DOMContentLoaded', () => {
-    // If you still use an external poller, this just sets the role.
     if (window.initAlerts) {
       window.initAlerts({ role: 'store' });
     }
@@ -135,7 +175,7 @@
     const ding = document.getElementById('ding');
     const tbody = document.getElementById('orders-list');
 
-    // ---- Notifications button
+    // Ask for notification permission (optional)
     async function askNotif() {
       try {
         if ("Notification" in window && Notification.permission === "default") {
@@ -143,6 +183,8 @@
         }
       } catch (e) {}
     }
+
+    // User gesture to unlock audio playback & notifications
     enableBtn.addEventListener('click', async () => {
       await askNotif();
       try { ding.currentTime = 0; await ding.play(); } catch (_) {}
@@ -151,21 +193,20 @@
       enableBtn.style.opacity = "0.7";
     });
 
-    // ---- Compute a SAFE initial "since" from the newest existing row
     function getInitialSinceISO() {
       let latest = null;
       tbody.querySelectorAll('tr[data-created-at]').forEach(tr => {
         const iso = tr.getAttribute('data-created-at');
         if (iso && (!latest || iso > latest)) latest = iso;
       });
-      return latest || new Date().toISOString(); // start from "now" if none
+      return latest || new Date().toISOString();
     }
     let since = getInitialSinceISO();
 
-    // ---- Helpers
     function rowExists(orderId) {
       return !!tbody.querySelector(`tr[data-order-id="${orderId}"]`);
     }
+
     function notify(title, body) {
       try {
         if ("Notification" in window && Notification.permission === "granted") {
@@ -176,20 +217,21 @@
       try { ding.currentTime = 0; ding.play(); } catch (e) {}
     }
 
-    function htmlEscape(s){return (s||"").replace(/[&<>"']/g,m=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));}
+    function htmlEscape(s){
+      return (s||"").replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m]));
+    }
 
-    // Render a FULL row (same structure as server) so you can update status inline
     function renderFullOrderRow(o){
       const total_payable = (Number(o.total_amount||0)+Number(o.delivery_fee||0)+Number(o.tip_amount||0)).toFixed(2);
       const tipBadge = (o.tip_amount && Number(o.tip_amount) > 0)
         ? `<span class="tag">includes tip ₹${Number(o.tip_amount).toFixed(2)}</span>` : "";
 
       const addr = (o.addr_line1
-            ? `${htmlEscape(o.addr_line1)}${o.addr_line2? ", "+htmlEscape(o.addr_line2):""}, ${htmlEscape(o.addr_city||"")}, ${htmlEscape(o.addr_state||"")} ${htmlEscape(o.addr_pincode||"")}`
-            : "—");
+        ? `${htmlEscape(o.addr_line1)}${o.addr_line2? ", "+htmlEscape(o.addr_line2):""}, ${htmlEscape(o.addr_city||"")}, ${htmlEscape(o.addr_state||"")} ${htmlEscape(o.addr_pincode||"")}`
+        : "—");
 
       const latlng = (o.addr_lat!=null && o.addr_lng!=null)
-            ? `<br><small>(${o.addr_lat}, ${o.addr_lng})</small>` : "";
+        ? `<br><small>(${o.addr_lat}, ${o.addr_lng})</small>` : "";
 
       const tr = document.createElement('tr');
       tr.setAttribute('data-order-id', o.id);
@@ -233,24 +275,20 @@
       return r.json();
     }
 
-    // Poller: only INSERT if the order row does not already exist
     const POLL_MS = 5000;
     async function poll(){
       try{
         const res = await fetchJSON(`/api/alerts/store?since=${encodeURIComponent(since)}`);
         if(res.ok && Array.isArray(res.new) && res.new.length){
-          // sort by created_at so 'since' can progress correctly
+          // oldest to newest, so "since" updates correctly
           res.new.sort((a,b)=>a.created_at.localeCompare(b.created_at));
           for(const n of res.new){
             const oid = n.order_id;
-            // Skip if row already present (prevents duplicates you saw)
             if(rowExists(oid)) {
               if(n.created_at > since) since = n.created_at;
               continue;
             }
-
-            // Try to fetch a detailed JSON for the order (if you've added such an endpoint)
-            // Fallback: build a minimal object from what we have
+            // try to fetch full detail for the row
             let order = null;
             try{
               const d = await fetchJSON(`/api/store/orders/${oid}`);
@@ -258,7 +296,7 @@
             }catch(_){}
 
             if(!order){
-              // minimal fallback so at least you see something (no duplication)
+              // fallback minimal info
               order = {
                 id: oid,
                 created_at: n.created_at,
@@ -276,7 +314,6 @@
               };
             }
 
-            // Notify + insert row
             notify(`New Order #${order.id}`, `₹${(Number(order.total_amount||0)+Number(order.delivery_fee||0)+Number(order.tip_amount||0)).toFixed(2)} — ${order.customer_name || ''}`);
             const tr = renderFullOrderRow(order);
             tbody.insertBefore(tr, tbody.firstChild);
@@ -297,6 +334,27 @@
 .tag {
   background:#eee; color:#555; padding:2px 8px; border-radius:999px;
   font-size:.85rem;
+}
+.row-actions{
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+}
+.add-stock-form{
+  display:flex; gap:8px; align-items:center;
+}
+.add-stock-form input[type="number"]{
+  width:120px; padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px;
+}
+.stock-pill{
+  display:inline-block; margin-top:6px; font-size:.85rem; padding:2px 8px; border-radius:999px;
+  border:1px solid #e2e8f0; background:#f8fafc; color:#334155;
+}
+.stock-pill.low{
+  border-color:#fecaca; background:#fff1f2; color:#b91c1c;
+}
+.muted { color:#6b7280; }
+.sr-only {
+  position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
+  clip:rect(0,0,0,0); white-space:nowrap; border:0;
 }
 </style>
 {% endblock %}

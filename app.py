@@ -19,6 +19,7 @@ load_dotenv()  # reads .env
 app = Flask(__name__)
 app.secret_key = os.getenv("APP_SECRET_KEY", "dev-only-change-this")  # set real secret in production
 
+print("[RUNNING]", __file__)
 
 
 # NOTE: db.py must define these
@@ -1835,6 +1836,56 @@ def store_product_toggle(pid):
             (pid, sid))
     return redirect(url_for('store_dashboard'))
 
+
+@app.route('/store/product/<int:pid>/stock/add', methods=['POST'], endpoint='store_product_add_stock')
+@login_required(role='store')
+def store_product_add_stock(pid):
+    u = current_user()
+    srow = query('SELECT id FROM stores WHERE user_id=?', (u['id'],))
+    if not srow:
+        flash('Store not found.', 'danger')
+        return redirect(url_for('store_dashboard'))
+    sid = srow[0]['id']
+
+    try:
+        add_kg = float(request.form.get('add_kg', '0') or 0)
+    except ValueError:
+        add_kg = 0.0
+
+    if add_kg <= 0:
+        flash('Enter a positive stock amount.', 'warning')
+        return redirect(url_for('store_dashboard'))
+
+    execute('UPDATE products SET stock_kg = stock_kg + ? WHERE id=? AND store_id=?', (add_kg, pid, sid))
+    flash(f'Added {add_kg:.2f} kg to stock.', 'success')
+    return redirect(url_for('store_dashboard'))
+
+
+@login_required(role='store')
+@app.route('/store/product/<int:pid>/stock/add', methods=['POST'])
+def store_product_add_stock(pid):
+    u = current_user()
+    srow = query('SELECT id FROM stores WHERE user_id=?', (u['id'],))
+    if not srow:
+        flash('Store not found.', 'danger')
+        return redirect(url_for('store_dashboard'))
+    sid = srow[0]['id']
+
+    try:
+        add_kg = float(request.form.get('add_kg', '0') or 0)
+    except ValueError:
+        add_kg = 0.0
+
+    if add_kg <= 0:
+        flash('Enter a positive stock amount.', 'warning')
+        return redirect(url_for('store_dashboard'))
+
+    execute('UPDATE products SET stock_kg = stock_kg + ? WHERE id=? AND store_id=?', (add_kg, pid, sid))
+    flash(f'Added {add_kg:.2f} kg to stock.', 'success')
+    return redirect(url_for('store_dashboard'))
+
+
+
 @app.route('/store/order/<int:oid>/status', methods=['POST'])
 @login_required(role='store')
 def store_order_status(oid):
@@ -1902,6 +1953,20 @@ def add_no_cache_headers(resp):
     resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     resp.headers["Pragma"] = "no-cache"
     return resp
+
+
+@app.route('/__routes')
+def __routes():
+    return "<pre>" + "\n".join(
+        f"{r.endpoint:30} {r.methods} {r}"
+        for r in app.url_map.iter_rules()
+    ) + "</pre>"
+
+
+print("\n=== ROUTES LOADED ===")
+print(app.url_map)
+print("=====================\n")
+
 
 
 if __name__ == '__main__':
