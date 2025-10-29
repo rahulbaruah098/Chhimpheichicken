@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Delivered Orders — {{ store.store_name }}</h2>
+
+<a class="btn" href="{{ url_for('store_dashboard') }}">← Back to Active Orders</a>
+
+<table class="table" style="margin-top:16px">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Customer</th>
+      <th>Phone</th>
+      <th>Total (₹)</th>
+      <th>Delivered On</th>
+      <th>Payment</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% if orders and orders|length %}
+    {% for o in orders %}
+      <tr>
+        <td>{{ o.id }}</td>
+        <td>{{ o.customer_name }}</td>
+        <td>{{ o.customer_phone or '—' }}</td>
+        <td>{{ '%.2f'|format(o.total_amount or 0) }}</td>
+        <td>{{ o.created_at.split('T')[0] if o.created_at else '' }}</td>
+        <td>{{ o.payment_status }}</td>
+      </tr>
+    {% endfor %}
+  {% else %}
+    <tr><td colspan="6" class="muted" style="text-align:center">No delivered orders yet.</td></tr>
+  {% endif %}
+  </tbody>
+</table>
+{% endblock %}

@@ -5,6 +5,7 @@ from io import BytesIO
 from datetime import datetime, timedelta
 from random import randint
 import csv, zipfile, json
+from datetime import date
 
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file, abort
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -1776,11 +1777,48 @@ def store_dashboard():
     store = query('SELECT * FROM stores WHERE user_id=?', (u['id'],))
     sid = store[0]['id'] if store else None
 
+        # ===== Store KPIs =====
+    # Total orders + GMV (sum of items total_amount)
+    k_orders = query("""
+        SELECT
+          COUNT(*)               AS total_orders,
+          COALESCE(SUM(total_amount), 0) AS gmv_total
+        FROM orders
+        WHERE store_id=?
+    """, (sid,))[0] if sid else {"total_orders": 0, "gmv_total": 0}
+
+    # Paid transactions total (₹) and count (joins store's orders)
+    k_txn = query("""
+        SELECT
+          COALESCE(SUM(t.amount), 0) AS paid_total,
+          COUNT(*)                    AS txn_count
+        FROM transactions t
+        JOIN orders o ON o.id = t.order_id
+        WHERE o.store_id=? AND t.status='PAID'
+    """, (sid,))[0] if sid else {"paid_total": 0, "txn_count": 0}
+
+    # Unique customers who ordered from this store
+    k_cust = query("""
+        SELECT COUNT(DISTINCT user_id) AS unique_customers
+        FROM orders
+        WHERE store_id=?
+    """, (sid,))[0] if sid else {"unique_customers": 0}
+
+    metrics = {
+        "total_orders":        k_orders["total_orders"] or 0,
+        "gmv_total":          float(k_orders["gmv_total"] or 0.0),
+        "paid_total":         float(k_txn["paid_total"] or 0.0),
+        "txn_count":          k_txn["txn_count"] or 0,
+        "unique_customers":   k_cust["unique_customers"] or 0,
+    }
+
+
     products = query(
         'SELECT * FROM products WHERE store_id=? ORDER BY created_at DESC',
         (sid,)
     ) if sid else []
 
+    # Only show active (not delivered or cancelled) orders on dashboard
     orders = query('''
     SELECT o.*, 
            u.name  AS customer_name,
@@ -1791,17 +1829,50 @@ def store_dashboard():
     JOIN users u ON u.id = o.user_id
     LEFT JOIN order_addresses oa ON oa.order_id = o.id
     WHERE o.store_id=? 
+      AND o.status NOT IN ('DELIVERED','CANCELLED')
     GROUP BY o.id
     ORDER BY o.created_at DESC
 ''', (sid,)) if sid else []
+
 
     return render_template(
         'store_dashboard.html',
         user=u,
         store=store[0] if store else None,
         products=products,
-        orders=orders
+        orders=orders,
+        metrics=metrics   # <-- add this
     )
+
+
+
+@app.route('/store/delivered-orders')
+@login_required(role='store')
+def store_delivered_orders():
+    """Show all delivered orders for this store."""
+    u = current_user()
+    srow = query('SELECT id, store_name FROM stores WHERE user_id=?', (u['id'],))
+    if not srow:
+        flash('Store not found.', 'danger')
+        return redirect(url_for('store_dashboard'))
+    sid = srow[0]['id']
+
+    delivered = query('''
+    SELECT o.*, 
+           u.name  AS customer_name,
+           u.phone AS customer_phone,
+           oa.line1 AS addr_line1, oa.line2 AS addr_line2, oa.city AS addr_city,
+           oa.state AS addr_state, oa.pincode AS addr_pincode, oa.latitude AS addr_lat, oa.longitude AS addr_lng
+    FROM orders o
+    JOIN users u ON u.id = o.user_id
+    LEFT JOIN order_addresses oa ON oa.order_id = o.id
+    WHERE o.store_id=? AND o.status='DELIVERED'
+    GROUP BY o.id
+    ORDER BY o.created_at DESC
+    ''', (sid,))
+    return render_template('store_delivered_orders.html', user=u, store=srow[0], orders=delivered)
+
+
 
 @app.route('/store/product/new', methods=['POST'])
 @login_required(role='store')
@@ -1861,6 +1932,191 @@ def store_product_add_stock(pid):
     return redirect(url_for('store_dashboard'))
 
 
+@app.route('/store/product/<int:pid>/edit', methods=['GET'], endpoint='store_product_edit')
+@login_required(role='store')
+def store_product_edit(pid):
+    """Render edit form for a product that belongs to the current store."""
+    u = current_user()
+    srow = query('SELECT id FROM stores WHERE user_id=?', (u['id'],))
+    if not srow:
+        flash('Store not found.', 'danger')
+        return redirect(url_for('store_dashboard'))
+    sid = srow[0]['id']
+
+    rows = query('SELECT * FROM products WHERE id=? AND store_id=?', (pid, sid))
+    if not rows:
+        flash('Product not found for your store.', 'warning')
+        return redirect(url_for('store_dashboard'))
+
+    p = dict(rows[0])
+    return render_template('store_product_edit.html', user=u, product=p)
+
+
+@app.route('/store/product/<int:pid>/edit', methods=['POST'], endpoint='store_product_update')
+@login_required(role='store')
+def store_product_update(pid):
+
+    """Handle updates for product fields (name, price, stock, image)."""
+    u = current_user()
+    srow = query('SELECT id FROM stores WHERE user_id=?', (u['id'],))
+    if not srow:
+        flash('Store not found.', 'danger')
+        return redirect(url_for('store_dashboard'))
+    sid = srow[0]['id']
+
+    # Ensure product belongs to this store
+    rows = query('SELECT * FROM products WHERE id=? AND store_id=?', (pid, sid))
+    if not rows:
+        flash('Product not found for your store.', 'warning')
+        return redirect(url_for('store_dashboard'))
+    prod = dict(rows[0])
+
+    # Read form fields
+    name = (request.form.get('name') or '').strip()
+    price_per_kg = request.form.get('price_per_kg', '')
+    stock_kg     = request.form.get('stock_kg', '')
+    image        = request.files.get('image')
+
+    # Validate numeric inputs safely
+    try:
+        price = float(price_per_kg)
+        if price < 0: raise ValueError()
+    except Exception:
+        flash('Enter a valid non-negative price.', 'warning')
+        return redirect(url_for('store_product_edit', pid=pid))
+
+    try:
+        stock = float(stock_kg)
+        if stock < 0: raise ValueError()
+    except Exception:
+        flash('Enter a valid non-negative stock (kg).', 'warning')
+        return redirect(url_for('store_product_edit', pid=pid))
+
+    image_path = prod.get('image_path')
+    if image and image.filename and '.' in image.filename and allowed_file(image.filename):
+        fn = secure_filename(image.filename)
+        save_as = datetime.utcnow().strftime('%Y%m%d%H%M%S_') + fn
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+        image.save(os.path.join(app.config['UPLOAD_FOLDER'], save_as))
+        image_path = f'uploads/{save_as}'
+
+    # Update the row
+    execute('''
+        UPDATE products
+        SET name=?, price_per_kg=?, stock_kg=?, image_path=?
+        WHERE id=? AND store_id=?
+    ''', (name, price, stock, image_path, pid, sid))
+
+    flash('Product updated.', 'success')
+    return redirect(url_for('store_dashboard'))
+
+
+
+
+@app.route('/store/transactions.csv')
+@login_required(role='store')
+def store_txn_csv():
+    """
+    Download transactions for this store as CSV.
+    Supported presets via ?range=day|week|month (UTC dates).
+    You can also pass explicit ?start=YYYY-MM-DD&end=YYYY-MM-DD (end exclusive).
+    Only PAID transactions are included.
+    """
+    u = current_user()
+    srow = query('SELECT id, store_name FROM stores WHERE user_id=?', (u['id'],))
+    if not srow:
+        flash('Store not found.', 'danger')
+        return redirect(url_for('store_dashboard'))
+    sid = srow[0]['id']
+
+    # --- Parse preset or explicit dates
+    preset = (request.args.get('range') or '').lower()  # 'day' | 'week' | 'month' | ''
+    start_str = request.args.get('start')
+    end_str   = request.args.get('end')    # exclusive end
+
+    def iso(d): return d.isoformat()
+
+    # Compute start/end (UTC date bounds)
+    if start_str and end_str:
+        # explicit range
+        try:
+            start_date = date.fromisoformat(start_str)
+            end_date   = date.fromisoformat(end_str)
+        except Exception:
+            flash('Invalid start/end date. Use YYYY-MM-DD.', 'warning')
+            return redirect(url_for('store_dashboard'))
+    else:
+        today = datetime.utcnow().date()
+        if preset == 'day':
+            start_date = today
+            end_date   = today + timedelta(days=1)
+        elif preset == 'week':
+            # Monday..Sunday window
+            start_date = today - timedelta(days=today.weekday())
+            end_date   = start_date + timedelta(days=7)
+        elif preset == 'month':
+            start_date = date(today.year, today.month, 1)
+            if today.month == 12:
+                end_date = date(today.year + 1, 1, 1)
+            else:
+                end_date = date(today.year, today.month + 1, 1)
+        else:
+            # default: today
+            start_date = today
+            end_date   = today + timedelta(days=1)
+
+    # Convert date-only bounds to ISO datetimes (inclusive start, exclusive end)
+    start_iso = f"{iso(start_date)}T00:00:00"
+    end_iso   = f"{iso(end_date)}T00:00:00"
+
+    # Fetch PAID transactions for this store in window
+    rows = query("""
+        SELECT
+          t.id                AS txn_id,
+          t.created_at        AS txn_created_at,
+          o.id                AS order_id,
+          o.total_amount      AS items_total,
+          COALESCE(o.delivery_fee,0) AS delivery_fee,
+          COALESCE(o.tip_amount,0)   AS tip_amount,
+          t.amount            AS paid_amount,
+          t.status            AS txn_status
+        FROM transactions t
+        JOIN orders o ON o.id = t.order_id
+        WHERE o.store_id = ?
+          AND t.status = 'PAID'
+          AND t.created_at >= ?
+          AND t.created_at < ?
+        ORDER BY t.created_at DESC
+    """, (sid, start_iso, end_iso))
+
+    # Build CSV
+    csv_lines = [
+        "txn_id,txn_created_at,order_id,items_total,delivery_fee,tip_amount,paid_amount,txn_status"
+    ]
+    for r in rows:
+        csv_lines.append(",".join([
+            str(r["txn_id"]),
+            str(r["txn_created_at"]),
+            str(r["order_id"]),
+            f'{float(r["items_total"] or 0):.2f}',
+            f'{float(r["delivery_fee"] or 0):.2f}',
+            f'{float(r["tip_amount"] or 0):.2f}',
+            f'{float(r["paid_amount"] or 0):.2f}',
+            str(r["txn_status"]),
+        ]))
+
+    data = "\n".join(csv_lines).encode("utf-8")
+    # Nice filename: store_<id>_<range>_YYYYMMDD.csv
+    stamp = datetime.utcnow().strftime("%Y%m%d")
+    label = preset or "day"
+    fn = f"store_{sid}_txns_{label}_{stamp}.csv"
+
+    return send_file(
+        io.BytesIO(data),
+        mimetype="text/csv",
+        as_attachment=True,
+        download_name=fn
+    )
 
 
 

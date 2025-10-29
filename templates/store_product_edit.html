@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Edit Product</h2>
+
+<form method="post" enctype="multipart/form-data" class="form" style="max-width:520px">
+  <label>Name
+    <input type="text" name="name" value="{{ product.name }}" required>
+  </label>
+
+  <label>Price per kg (₹)
+    <input type="number" name="price_per_kg" step="0.01" min="0" value="{{ '%.2f'|format(product.price_per_kg or 0) }}" required>
+  </label>
+
+  <label>Stock (kg)
+    <input type="number" name="stock_kg" step="0.01" min="0" value="{{ '%.2f'|format(product.stock_kg or 0) }}" required>
+  </label>
+
+  <div style="margin:8px 0">
+    <div class="muted" style="margin-bottom:6px">Current image:</div>
+    {% if product.image_path %}
+      <img src="/{{ product.image_path }}" alt="Current image" style="width:96px;height:96px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb">
+    {% else %}
+      <span class="muted">—</span>
+    {% endif %}
+  </div>
+
+  <label>Replace image (optional)
+    <input type="file" name="image" accept="image/*" capture="environment">
+  </label>
+
+  <div style="display:flex;gap:10px;margin-top:12px">
+    <button class="btn" type="submit">Save Changes</button>
+    <a class="btn-ghost" href="{{ url_for('store_dashboard') }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

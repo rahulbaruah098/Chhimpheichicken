@@ -5,6 +5,40 @@
 
 <h2>Store Dashboard — {{ store.store_name }}</h2>
 
+<!-- ===== Store KPIs ===== -->
+<div class="kpi-wrap">
+  <div class="kpi-card">
+    <div class="kpi-label">Total Orders</div>
+    <div class="kpi-value">{{ metrics.total_orders }}</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Paid Transactions (₹)</div>
+    <div class="kpi-value">₹ {{ '%.2f'|format(metrics.paid_total) }}</div>
+    <div class="kpi-sub">{{ metrics.txn_count }} txns</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">GMV (₹)</div>
+    <div class="kpi-value">₹ {{ '%.2f'|format(metrics.gmv_total) }}</div>
+    <div class="kpi-sub">Before delivery & tips</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Unique Customers</div>
+    <div class="kpi-value">{{ metrics.unique_customers }}</div>
+  </div>
+</div>
+
+
+
+<!-- ===== Downloads ===== -->
+<div class="downloads">
+  <span class="muted">Download transactions:</span>
+  <a class="btn-ghost" href="{{ url_for('store_txn_csv') }}?range=day">Daily CSV</a>
+  <a class="btn-ghost" href="{{ url_for('store_txn_csv') }}?range=week">Weekly CSV</a>
+  <a class="btn-ghost" href="{{ url_for('store_txn_csv') }}?range=month">Monthly CSV</a>
+</div>
+
+
+
 <!-- 🔔 New order alert sound -->
 <audio id="ding" preload="auto">
   <source src="{{ url_for('static', filename='ding.mp3') }}" type="audio/mpeg">
@@ -15,6 +49,9 @@
   🔔 Enable Order Notifications
 </button>
 <noscript><p class="muted">Enable JavaScript to receive live order alerts.</p></noscript>
+
+<a class="btn" href="{{ url_for('store_delivered_orders') }}">📦 View Delivered Orders</a>
+
 
 <!-- =====================
      Add Product
@@ -81,6 +118,9 @@
               <input id="add_kg_{{ p.id }}" name="add_kg" type="number" step="0.01" min="0.01" placeholder="+0.50" required>
               <button class="btn" title="Add to stock">Add Stock</button>
             </form>
+                  <!-- Edit product -->
+              <a class="btn" href="{{ url_for('store_product_edit', pid=p.id) }}">Edit</a>
+
           </div>
         </td>
       </tr>
@@ -356,5 +396,30 @@
   position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
   clip:rect(0,0,0,0); white-space:nowrap; border:0;
 }
+
+.kpi-wrap{
+  display:grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap:12px; margin:12px 0 18px;
+}
+.kpi-card{
+  background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px;
+  padding:12px 14px; box-shadow: 0 1px 0 rgba(0,0,0,.02);
+}
+.kpi-label{
+  font-size:.85rem; color:#6b7280; margin-bottom:4px;
+}
+.kpi-value{
+  font-size:1.4rem; font-weight:700; color:#0f172a;
+}
+.kpi-sub{
+  font-size:.8rem; color:#64748b; margin-top:2px;
+}
+
+.downloads{
+  display:flex; align-items:center; gap:10px; margin:8px 0 16px;
+}
+
+
 </style>
 {% endblock %}
