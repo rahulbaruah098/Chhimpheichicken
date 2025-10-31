@@ -256,6 +256,30 @@
     flex-wrap:wrap;
     margin-bottom:12px;
   }
+
+  /* === ADDED: visual discount row under price === */
+  .deal-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin:2px 0 10px;
+  }
+  .deal-row .mrp{
+    text-decoration:line-through;
+    color:#94a3b8;
+    font-weight:600;
+    font-size:.95rem;
+  }
+  .deal-row .off{
+    background:rgba(22,163,74,.10);
+    color:#16a34a;
+    border:1px solid rgba(22,163,74,.30);
+    border-radius:999px;
+    padding:2px 8px;
+    font-weight:700;
+    font-size:.8rem;
+    line-height:1.3;
+  }
   
   /* Rating section */
   .rating-section{
@@ -324,11 +348,17 @@
     <img src="{{ '/' + product.image_path if product.image_path else url_for('static', filename='placeholder.png') }}"
          alt="{{ product.name }}">
     <div class="pd-body">
+
+      {# === ADDED: compute visual-only discount values (no DB changes) === #}
+      {% set half_price = (product.price_per_kg or 0) / 2 %}
+      {% set mrp_half = half_price * 1.20 %}
+      {% set pct_off = ((1 - (half_price / (mrp_half or 1))) * 100) %}
+
       <div class="price-section">
         <div class="price">
-  ₹ {{ '%.2f'|format(product.price_per_kg / 2) }}
-  <span class="small muted">/½kg</span>
-</div>
+          ₹ {{ '%.2f'|format(product.price_per_kg / 2) }}
+          <span class="small muted">/½kg</span>
+        </div>
 
         <span class="badge">
           {% if product.stock_kg is not none and product.stock_kg > 0 %}
@@ -337,6 +367,12 @@
             Out of stock
           {% endif %}
         </span>
+      </div>
+
+      <!-- === ADDED: Discount row (display only) === -->
+      <div class="deal-row">
+        <span class="mrp">₹ {{ '%.2f'|format(mrp_half) }}</span>
+        <span class="off">{{ (pct_off | round(0, 'floor') | int) }}% OFF</span>
       </div>
 
       <!-- Ratings summary -->
