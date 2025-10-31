@@ -277,7 +277,8 @@
       </div>
       <p class="muted store">{{ p.store_name }}</p>
       <div class="price-row">
-        <span class="price">₹ {{ '%.2f'|format(p.price_per_kg) }}/kg</span>
+        <span class="price">₹ {{ '%.2f'|format(p.price_per_kg / 2) }}/½kg</span>
+
         <a class="btn-ghost" href="{{ url_for('product_detail', pid=p.id) }}" style="padding:8px 12px; font-size:0.8rem;">View</a>
       </div>
     </div>
