@@ -148,8 +148,34 @@ def init_db():
         created_at TEXT NOT NULL,
         latitude REAL,
         longitude REAL,
+        delivery_charge_enabled INTEGER NOT NULL DEFAULT 1
+            CHECK (delivery_charge_enabled IN (0, 1)),
+        delivery_fee_0_2_km REAL NOT NULL DEFAULT 40
+            CHECK (delivery_fee_0_2_km >= 0),
+        delivery_fee_2_5_km REAL NOT NULL DEFAULT 55
+            CHECK (delivery_fee_2_5_km >= 0),
+        delivery_fee_5_7_km REAL NOT NULL DEFAULT 65
+            CHECK (delivery_fee_5_7_km >= 0),
+        delivery_fee_7_10_km REAL NOT NULL DEFAULT 75
+            CHECK (delivery_fee_7_10_km >= 0),
         FOREIGN KEY(user_id) REFERENCES users(id)
     )""")
+
+    # ---------- SAFE MIGRATION: store delivery-charge settings ----------
+    # Existing stores keep the current distance-based prices by default.
+    store_delivery_columns = {
+        "delivery_charge_enabled": "INTEGER NOT NULL DEFAULT 1 CHECK (delivery_charge_enabled IN (0, 1))",
+        "delivery_fee_0_2_km": "REAL NOT NULL DEFAULT 40 CHECK (delivery_fee_0_2_km >= 0)",
+        "delivery_fee_2_5_km": "REAL NOT NULL DEFAULT 55 CHECK (delivery_fee_2_5_km >= 0)",
+        "delivery_fee_5_7_km": "REAL NOT NULL DEFAULT 65 CHECK (delivery_fee_5_7_km >= 0)",
+        "delivery_fee_7_10_km": "REAL NOT NULL DEFAULT 75 CHECK (delivery_fee_7_10_km >= 0)",
+    }
+    for column_name, column_definition in store_delivery_columns.items():
+        if not _has_column(cur, "stores", column_name):
+            cur.execute(
+                f"ALTER TABLE stores ADD COLUMN {column_name} {column_definition}"
+            )
+
     cur.execute("""
     CREATE TABLE IF NOT EXISTS products (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -984,7 +1010,7 @@ def can_delete_user_hard(user_id: int) -> Tuple[bool, str]:
             cnt = query("SELECT COUNT(*) c FROM orders WHERE store_id=?", (st["id"],))[0]["c"]
             if cnt and int(cnt) > 0:
                 return False, "Store has orders; cannot hard-delete."
-        # no orders – OK to delete
+        # no orders â€“ OK to delete
         return True, ""
 
     if role == "customer":

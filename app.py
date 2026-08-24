@@ -145,6 +145,86 @@ DELIVERY_SURCHARGE_SLABS = [
 ]
 MAX_DELIVERY_KM = 10.0
 
+
+def _store_delivery_setting(store, key, default):
+    """Read a delivery setting from a sqlite Row/dict with a safe default."""
+    if store is None:
+        return default
+    try:
+        value = store[key]
+    except (KeyError, TypeError, IndexError):
+        return default
+    return default if value is None else value
+
+
+def get_store_delivery_config(store):
+    """Return normalized store-specific delivery settings."""
+    try:
+        enabled = int(_store_delivery_setting(store, "delivery_charge_enabled", 1)) == 1
+    except (TypeError, ValueError):
+        enabled = True
+
+    defaults = {
+        "fee_0_2_km": 40.0,
+        "fee_2_5_km": 55.0,
+        "fee_5_7_km": 65.0,
+        "fee_7_10_km": 75.0,
+    }
+    columns = {
+        "fee_0_2_km": "delivery_fee_0_2_km",
+        "fee_2_5_km": "delivery_fee_2_5_km",
+        "fee_5_7_km": "delivery_fee_5_7_km",
+        "fee_7_10_km": "delivery_fee_7_10_km",
+    }
+
+    config = {"enabled": enabled}
+    for config_key, column_name in columns.items():
+        try:
+            amount = float(_store_delivery_setting(store, column_name, defaults[config_key]))
+        except (TypeError, ValueError):
+            amount = defaults[config_key]
+        config[config_key] = max(0.0, round(amount, 2)) if enabled else 0.0
+
+    return config
+
+
+def calculate_store_delivery_fee(store, distance_km):
+    """Calculate the authoritative delivery fee for one store and distance."""
+    km = None
+    if distance_km is not None:
+        try:
+            km = float(distance_km)
+        except (TypeError, ValueError):
+            km = None
+        if km is not None and (km < 0 or km > MAX_DELIVERY_KM):
+            return None
+
+    config = get_store_delivery_config(store)
+    if not config["enabled"]:
+        return 0.0
+    if km is None:
+        return config["fee_0_2_km"]
+    if km < 2:
+        return config["fee_0_2_km"]
+    if km < 5:
+        return config["fee_2_5_km"]
+    if km < 7:
+        return config["fee_5_7_km"]
+    return config["fee_7_10_km"]
+
+
+def delivery_preview_values(store):
+    """Convert store totals to the base-plus-extra structure used by checkout.html."""
+    config = get_store_delivery_config(store)
+    base_fee = config["fee_0_2_km"]
+    slabs = [
+        (0, 2, 0.0),
+        (2, 5, config["fee_2_5_km"] - base_fee),
+        (5, 7, config["fee_5_7_km"] - base_fee),
+        (7, 10, config["fee_7_10_km"] - base_fee),
+    ]
+    return config, base_fee, slabs
+
 def haversine_km(lat1, lon1, lat2, lon2):
     if None in (lat1, lon1, lat2, lon2):
         return None
@@ -271,7 +351,7 @@ def api_location_set():
 
     serviceable = is_serviceable_pincode(pincode)
 
-    # ✅ keep existing structure
+    # âœ… keep existing structure
     session["service_area"] = {
         "address": address or f"Pincode {pincode}",
         "pincode": pincode,
@@ -279,7 +359,7 @@ def api_location_set():
         "lng": lng_f,
     }
 
-    # ✅ add keys that your checkout() already uses
+    # âœ… add keys that your checkout() already uses
     session["location_pincode"] = pincode
     session["location_lat"] = lat_f
     session["location_lng"] = lng_f
@@ -291,7 +371,7 @@ def api_location_set():
 def api_location_clear():
     session.pop("service_area", None)
 
-    # ✅ also clear these
+    # âœ… also clear these
     session.pop("location_pincode", None)
     session.pop("location_lat", None)
     session.pop("location_lng", None)
@@ -852,11 +932,11 @@ def address_new():
     label = request.form.get("label","").strip() or "Home"
     is_def = 1 if request.form.get("is_default") == "1" else 0
 
-    # ✅ Lat/Lng from hidden fields (synced from manual inputs)
+    # âœ… Lat/Lng from hidden fields (synced from manual inputs)
     lat_raw = (request.form.get("latitude") or "").strip()
     lng_raw = (request.form.get("longitude") or "").strip()
 
-    # ✅ Safe conversion + range validation
+    # âœ… Safe conversion + range validation
     latitude = None
     longitude = None
     if lat_raw:
@@ -977,7 +1057,7 @@ def cart_page():
         ORDER BY ci.id DESC
     ''', (cid,))
 
-    # ✅ Enforce single-store cart (optional)
+    # âœ… Enforce single-store cart (optional)
     # If cart contains products from different stores, keep ONLY the most recent store's items
     # (you can change this behavior if you want)
     if items:
@@ -1060,7 +1140,7 @@ def api_cart_add(user_id):
 
     weight_kg = round(round(weight_kg * 4) / 4, 2)
 
-    # ✅ Fetch product including store_id
+    # âœ… Fetch product including store_id
     prow = query("SELECT stock_kg, is_active, store_id FROM products WHERE id=?", (product_id,))
     if not prow:
         return jsonify({'ok': False, 'msg': 'Product not found'}), 404
@@ -1078,7 +1158,7 @@ def api_cart_add(user_id):
     cid = get_or_create_cart(user_id)
 
     # =========================================================
-    # ✅ SINGLE-STORE ENFORCEMENT (BLOCK adding from other store)
+    # âœ… SINGLE-STORE ENFORCEMENT (BLOCK adding from other store)
     # =========================================================
     existing_store = query("""
         SELECT DISTINCT p.store_id AS store_id
@@ -1096,7 +1176,7 @@ def api_cart_add(user_id):
                 "msg": "Your cart already has items from another store. Please clear the cart first to add from this store."
             }), 409
 
-    # ✅ Normal add/update
+    # âœ… Normal add/update
     rows = query(
         'SELECT id FROM cart_items WHERE cart_id=? AND product_id=?',
         (cid, product_id)
@@ -1108,7 +1188,7 @@ def api_cart_add(user_id):
         execute('INSERT INTO cart_items (cart_id, product_id, weight_kg) VALUES (?,?,?)', (cid, product_id, weight_kg))
 
     debug_rows = query("SELECT id, cart_id, product_id, weight_kg FROM cart_items WHERE cart_id=? ORDER BY id DESC", (cid,))
-    print("✅ CART_ITEMS (for this cart_id):", debug_rows)
+    print("âœ… CART_ITEMS (for this cart_id):", debug_rows)
 
     c = query("SELECT COUNT(*) AS c FROM cart_items WHERE cart_id=?", (cid,))
     cart_count = int(c[0]["c"] or 0) if c else 0
@@ -1130,7 +1210,7 @@ def api_cart_remove(user_id):
     execute('DELETE FROM cart_items WHERE id=? AND cart_id=?', (item_id, cid))
 
     row = query_one('SELECT COUNT(*) AS c FROM cart_items WHERE cart_id=?', (cid,))
-    cart_count = int(row['c']) if row else 0   # ✅ FIX: sqlite3.Row has no .get()
+    cart_count = int(row['c']) if row else 0   # âœ… FIX: sqlite3.Row has no .get()
 
     return jsonify({'ok': True, 'cart_count': cart_count})
 
@@ -1149,6 +1229,7 @@ def checkout():
     # Always defined (used by checkout.html data-store-lat/lng)
     store_lat = None
     store_lng = None
+    checkout_store = None
 
     #Load cart items
     items = query('''
@@ -1158,7 +1239,7 @@ def checkout():
         WHERE ci.cart_id=?
     ''', (cid,))
 
-    # ✅ Multi-store cart protection (GET + POST entry gate)
+    # âœ… Multi-store cart protection (GET + POST entry gate)
     store_ids = sorted(set([int(it["store_id"]) for it in items])) if items else []
     cart_store_count = len(store_ids)
 
@@ -1177,11 +1258,13 @@ def checkout():
     if items:
         try:
             store_id_first = int(items[0]['store_id'])
-            srow = query("SELECT latitude, longitude FROM stores WHERE id=?", (store_id_first,))
+            srow = query("SELECT * FROM stores WHERE id=?", (store_id_first,))
             if srow:
-                store_lat = srow[0]["latitude"]
-                store_lng = srow[0]["longitude"]
+                checkout_store = srow[0]
+                store_lat = checkout_store["latitude"]
+                store_lng = checkout_store["longitude"]
         except Exception:
+            checkout_store = None
             store_lat, store_lng = None, None
 
     # -------------------------
@@ -1192,7 +1275,7 @@ def checkout():
             flash('Your cart is empty.', 'warning')
             return redirect(url_for('cart_page'))
         
-        # ✅ Multi-store POST guard again (in case of request manipulation)
+        # âœ… Multi-store POST guard again (in case of request manipulation)
         store_ids_post = sorted(set([int(it["store_id"]) for it in items]))
         if len(store_ids_post) > 1:
             flash("Your cart contains items from multiple stores. Please order from one store at a time.", "danger")
@@ -1243,7 +1326,7 @@ def checkout():
         store_lat = store['latitude'] if store and 'latitude' in store.keys() else None
         store_lng = store['longitude'] if store and 'longitude' in store.keys() else None
 
-        # ✅ Use address coords if present, else fallback to session "current location"
+        # âœ… Use address coords if present, else fallback to session "current location"
         addr_lat = sel["latitude"] if sel["latitude"] else session.get("location_lat")
         addr_lng = sel["longitude"] if sel["longitude"] else session.get("location_lng")
 
@@ -1254,20 +1337,11 @@ def checkout():
             flash(f"Delivery distance ({km:.1f} km) exceeds our limit of {MAX_DELIVERY_KM} km.", "danger")
             return redirect(url_for("checkout"))
 
-        # Delivery fee by slabs
-        if km is None:
-            delivery_fee = BASE_DELIVERY_FEE_INR
-        else:
-            extra = None
-            for low, high, fee in DELIVERY_SURCHARGE_SLABS:
-                last_high = DELIVERY_SURCHARGE_SLABS[-1][1]
-                if (km >= low) and (km < high or high == last_high):
-                    extra = fee; 
-                    break
-            if extra is None:
-                flash("Delivery not available for this distance.", "danger")
-                return redirect(url_for("checkout"))
-            delivery_fee = BASE_DELIVERY_FEE_INR + extra
+        # Store-specific delivery fee (or free delivery when disabled)
+        delivery_fee = calculate_store_delivery_fee(store, km)
+        if delivery_fee is None:
+            flash("Delivery not available for this distance.", "danger")
+            return redirect(url_for("checkout"))
 
         # Tip amount clamp
         tip_amount = request.form.get("tip_amount", "0").strip()
@@ -1302,12 +1376,28 @@ def checkout():
                 flash('Your cart is empty.', 'warning')
                 return redirect(url_for('cart_page'))
 
-            # ✅ Multi-store FINAL safety (inside lock)
+            # âœ… Multi-store FINAL safety (inside lock)
             tx_store_ids = sorted(set([int(it["store_id"]) for it in tx_items]))
             if len(tx_store_ids) > 1:
                 conn.rollback()
                 flash("Your cart contains items from multiple stores. Please order from one store at a time.", "danger")
                 return redirect(url_for("cart_page"))
+
+            # Re-read the store settings while holding the write lock so the
+            # fee saved on the order is the current authoritative amount.
+            store_id = tx_store_ids[0]
+            cur.execute("SELECT * FROM stores WHERE id=?", (store_id,))
+            tx_store = cur.fetchone()
+            if tx_store is None:
+                conn.rollback()
+                flash("Store not found.", "danger")
+                return redirect(url_for("cart_page"))
+
+            delivery_fee = calculate_store_delivery_fee(tx_store, km)
+            if delivery_fee is None:
+                conn.rollback()
+                flash("Delivery not available for this distance.", "danger")
+                return redirect(url_for("checkout"))
 
             # Validate again inside lock
             for it in tx_items:
@@ -1399,14 +1489,16 @@ def checkout():
     # GET: totals for UI
     # -------------------------
     total = sum([float(it['weight_kg'] or 0) * float(it['price_per_kg'] or 0) for it in items])
+    delivery_config, preview_base_fee, preview_slabs = delivery_preview_values(checkout_store)
 
     return render_template(
         "checkout.html",
         user=u,
         addresses=addresses,
         total=total,
-        base_fee=BASE_DELIVERY_FEE_INR,
-        slabs=DELIVERY_SURCHARGE_SLABS,
+        base_fee=preview_base_fee,
+        slabs=preview_slabs,
+        delivery_charge_enabled=delivery_config["enabled"],
         max_km=MAX_DELIVERY_KM,
         store_lat=store_lat,
         store_lng=store_lng,
@@ -1485,7 +1577,7 @@ def about():
         # query_one returns sqlite3.Row, not dict -> no .get()
         row = query_one("SELECT COUNT(*) AS c FROM cart_items WHERE cart_id = ?", (cid,))
         if row is not None:
-            cart_count = int(row["c"] or 0)   # ✅ safe
+            cart_count = int(row["c"] or 0)   # âœ… safe
 
     return render_template(
         "about.html",
@@ -1654,7 +1746,7 @@ def delivery_status(oid):
     return redirect(url_for('delivery_dashboard'))
 
 # ----------------------
-# DELIVERY API — Customer polls rider location
+# DELIVERY API â€” Customer polls rider location
 # ----------------------
 @app.route('/delivery/api/location', methods=['POST'])
 @login_required(role='delivery')
@@ -1925,7 +2017,7 @@ def api_search_suggest():
     })
 
 # ----------------------
-# Ratings routes — disabled (from feedback only)
+# Ratings routes â€” disabled (from feedback only)
 # ----------------------
 @app.route('/rate/product/<int:pid>', methods=['POST'])
 @login_required()
@@ -1978,7 +2070,7 @@ def complaints_create():
 
     try:
         file_complaint(u['id'], target_type, target_id, message, order_id, image_path=image_path, title=title)
-        flash('Complaint submitted. We’ll review it shortly.','success')
+        flash('Complaint submitted. Weâ€™ll review it shortly.','success')
     except Exception as e:
         flash(f'Could not submit complaint: {e}','danger')
     return redirect(request.referrer or url_for('index'))
@@ -2145,18 +2237,18 @@ def admin_create_store():
         address = (request.form.get('address') or '').strip()
 
 
-        print("✅ FORM KEYS:", list(request.form.keys()), flush=True)
-        print("✅ LAT RAW:", repr(request.form.get("latitude")), flush=True)
-        print("✅ LNG RAW:", repr(request.form.get("longitude")), flush=True)
+        print("âœ… FORM KEYS:", list(request.form.keys()), flush=True)
+        print("âœ… LAT RAW:", repr(request.form.get("latitude")), flush=True)
+        print("âœ… LNG RAW:", repr(request.form.get("longitude")), flush=True)
 
-        # ✅ NEW: read lat/lng coming from admin_create_store.html
+        # âœ… NEW: read lat/lng coming from admin_create_store.html
         lat_raw = (request.form.get('latitude') or '').strip()
         lng_raw = (request.form.get('longitude') or '').strip()
 
 
        
 
-        # ✅ Safe convert
+        # âœ… Safe convert
         latitude = None
         longitude = None
         try:
@@ -2168,7 +2260,7 @@ def admin_create_store():
         except Exception:
             longitude = None
 
-        # ✅ Minimal validation (optional but recommended)
+        # âœ… Minimal validation (optional but recommended)
         if not name or not email or not phone or not password or not store_name:
             flash("Please fill all required fields.", "warning")
             return redirect(url_for('admin_create_store'))
@@ -2212,7 +2304,7 @@ def admin_create_delivery():
             flash('Please fill all required fields.', 'error')
             return redirect(url_for('admin_create_delivery'))
 
-        # ✅ query() returns sqlite3.Row -> use ['col'] not .get()
+        # âœ… query() returns sqlite3.Row -> use ['col'] not .get()
         rows = query("SELECT id, role, name FROM users WHERE email = ? LIMIT 1", (email,))
         if rows:
             existing = rows[0]
@@ -2228,7 +2320,7 @@ def admin_create_delivery():
                 (name, email, phone, generate_password_hash(password), datetime.utcnow().isoformat())
             )
         except IntegrityError:
-            # ✅ If race-condition / same email inserted by another request
+            # âœ… If race-condition / same email inserted by another request
             flash("This email is already registered. Please use a different email.", "error")
             return redirect(url_for('admin_create_delivery'))
         except Exception as e:
@@ -2531,6 +2623,71 @@ def store_dashboard():
     )
 
 
+@app.route('/store/delivery-settings', methods=['POST'])
+@login_required(role='store')
+def store_delivery_settings_update():
+    """Update delivery prices only for the currently signed-in store."""
+    u = current_user()
+    store_rows = query('SELECT * FROM stores WHERE user_id=?', (u['id'],))
+
+    return_view = (request.form.get('return_view') or '').strip().lower()
+    redirect_args = {"view": return_view} if return_view in ("desktop", "mobile") else {}
+
+    if not store_rows:
+        flash('Store not found.', 'danger')
+        return redirect(url_for('store_dashboard', **redirect_args))
+
+    store = store_rows[0]
+    enabled = "1" in request.form.getlist('delivery_charge_enabled')
+
+    fee_fields = {
+        "delivery_fee_0_2_km": "0â€“2 km",
+        "delivery_fee_2_5_km": "2â€“5 km",
+        "delivery_fee_5_7_km": "5â€“7 km",
+        "delivery_fee_7_10_km": "7â€“10 km",
+    }
+    fee_values = {}
+
+    for field_name, distance_label in fee_fields.items():
+        raw_value = request.form.get(field_name)
+        if raw_value is None or str(raw_value).strip() == "":
+            flash(f'Enter a delivery charge for {distance_label}.', 'warning')
+            return redirect(url_for('store_dashboard', **redirect_args))
+        try:
+            amount = round(float(raw_value), 2)
+        except (TypeError, ValueError):
+            flash(f'Enter a valid delivery charge for {distance_label}.', 'warning')
+            return redirect(url_for('store_dashboard', **redirect_args))
+        if not math.isfinite(amount) or amount < 0 or amount > 10000:
+            flash(f'Delivery charge for {distance_label} must be between â‚¹0 and â‚¹10,000.', 'warning')
+            return redirect(url_for('store_dashboard', **redirect_args))
+        fee_values[field_name] = amount
+
+    execute('''
+        UPDATE stores
+        SET delivery_charge_enabled=?,
+            delivery_fee_0_2_km=?,
+            delivery_fee_2_5_km=?,
+            delivery_fee_5_7_km=?,
+            delivery_fee_7_10_km=?
+        WHERE id=? AND user_id=?
+    ''', (
+        1 if enabled else 0,
+        fee_values["delivery_fee_0_2_km"],
+        fee_values["delivery_fee_2_5_km"],
+        fee_values["delivery_fee_5_7_km"],
+        fee_values["delivery_fee_7_10_km"],
+        store["id"],
+        u["id"],
+    ))
+
+    if enabled:
+        flash('Delivery charges updated successfully.', 'success')
+    else:
+        flash('Free delivery is now enabled for your store.', 'success')
+    return redirect(url_for('store_dashboard', **redirect_args))
+
+
 
 @app.route('/store/delivered-orders')
 @login_required(role='store')
@@ -2688,7 +2845,7 @@ def store_product_update(pid):
     stock_kg     = request.form.get('stock_kg', '')
     image        = request.files.get('image')
 
-    # ✅ NEW: category fields
+    # âœ… NEW: category fields
     category = (request.form.get('category') or '').strip()
     sub_category = (request.form.get('sub_category') or '').strip()
 
@@ -3151,7 +3308,7 @@ def api_create_web_session():
         session['mobile_session_id'] = session_identifier
         
         # Log session creation
-        print(f"✅ Web session created for user {user['id']} ({user['email']})")
+        print(f"âœ… Web session created for user {user['id']} ({user['email']})")
         
         # Return session information to mobile app
         return jsonify({
@@ -3168,7 +3325,7 @@ def api_create_web_session():
         }), 200
         
     except Exception as e:
-        print(f"❌ Error creating web session: {e}")
+        print(f"âŒ Error creating web session: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({
@@ -3203,7 +3360,7 @@ def api_create_web_session():
 #         }), 200
         
 #     except Exception as e:
-#         print(f"❌ Error cleaning up sessions: {e}")
+#         print(f"âŒ Error cleaning up sessions: {e}")
 #         return jsonify({
 #             'success': False,
 #             'error': str(e)
@@ -3324,14 +3481,14 @@ def api_products_list():
     """
     params = []
 
-    # ✅ Category filter
+    # âœ… Category filter
     if category:
         if category not in allowed_categories:
             return jsonify({'success': False, 'error': 'Invalid category'}), 400
         query_sql += " AND p.category = ?"
         params.append(category)
 
-        # ✅ Sub-category filter (only valid for Fresh cuts)
+        # âœ… Sub-category filter (only valid for Fresh cuts)
         if sub_category:
             if category != 'Fresh cuts':
                 return jsonify({'success': False, 'error': 'sub_category only valid for Fresh cuts'}), 400
@@ -3340,7 +3497,7 @@ def api_products_list():
             query_sql += " AND p.sub_category = ?"
             params.append(sub_category)
 
-    # ✅ Search filter
+    # âœ… Search filter
     if search:
         query_sql += " AND (LOWER(p.name) LIKE ? OR LOWER(s.store_name) LIKE ?)"
         search_term = f"%{search.lower()}%"
@@ -3363,7 +3520,7 @@ def api_products_list():
             'avg_rating': float(p['avg_rating'] or 0),
             'rating_count': int(p['rating_count'] or 0),
 
-            # ✅ NEW (for app-side filtering/debug)
+            # âœ… NEW (for app-side filtering/debug)
             'category': p['category'],
             'sub_category': p['sub_category'],
 
@@ -3400,7 +3557,7 @@ def api_product_detail(pid):
             'avg_rating': float(p['avg_rating'] or 0),
             'rating_count': int(p['rating_count'] or 0),
 
-            # ✅ NEW
+            # âœ… NEW
             'category': p['category'],
             'sub_category': p['sub_category'],
 
@@ -3698,7 +3855,7 @@ def api_order_cancel(user_id, oid):
         
     except Exception as e:
         conn.rollback()
-        print(f"❌ Error cancelling order {oid}: {e}")
+        print(f"âŒ Error cancelling order {oid}: {e}")
         return jsonify({
             'success': False,
             'error': f'Could not cancel order: {str(e)}'
@@ -3900,7 +4057,7 @@ def api_addresses_delete_post(user_id, address_id):
 #     payment_method = (data.get('payment_method') or 'COD').strip() or 'COD'
 #     tip_amount = data.get('tip_amount', 0)
 
-#     # ✅ Preferred: address_id sent by app
+#     # âœ… Preferred: address_id sent by app
 #     address_id = data.get('address_id')
 
 #     # --- Load cart items for this user ---
@@ -3959,7 +4116,7 @@ def api_addresses_delete_post(user_id, address_id):
 #         if float(it['weight_kg'] or 0) > float(it['stock_kg'] or 0):
 #             return jsonify({'success': False, 'error': 'Insufficient stock'}), 409
 
-#     # ✅ Single-store checkout assumption (same as your website checkout)
+#     # âœ… Single-store checkout assumption (same as your website checkout)
 #     store_id = int(items[0]['store_id'])
 
 #     # --- Tip normalize ---
@@ -4174,7 +4331,7 @@ def api_checkout(user_id):
             return default
 
     if isinstance(items_in, list) and len(items_in) > 0:
-        # ✅ Build items from payload
+        # âœ… Build items from payload
         agg = {}  # product_id -> weight_kg
         for row in items_in:
             if not isinstance(row, dict):
@@ -4217,7 +4374,7 @@ def api_checkout(user_id):
             })
 
     else:
-        # ✅ Fallback to website cart_items table
+        # âœ… Fallback to website cart_items table
         items = query('''
             SELECT ci.product_id, ci.weight_kg, p.price_per_kg, p.store_id,
                 p.stock_kg, p.is_active
@@ -4274,19 +4431,10 @@ def api_checkout(user_id):
     if km is not None and km > MAX_DELIVERY_KM:
         return jsonify({'success': False, 'error': f'Delivery distance ({km:.1f} km) exceeds limit'}), 400
 
-    # Delivery fee slab (same logic pattern as website)
-    if km is None:
-        delivery_fee = BASE_DELIVERY_FEE_INR
-    else:
-        extra = None
-        for low, high, fee in DELIVERY_SURCHARGE_SLABS:
-            last_high = DELIVERY_SURCHARGE_SLABS[-1][1]
-            if (km >= low) and (km < high or high == last_high):
-                extra = fee
-                break
-        if extra is None:
-            return jsonify({'success': False, 'error': 'Delivery not available for this distance'}), 400
-        delivery_fee = BASE_DELIVERY_FEE_INR + extra
+    # Store-specific delivery fee (or free delivery when disabled)
+    delivery_fee = calculate_store_delivery_fee(store, km)
+    if delivery_fee is None:
+        return jsonify({'success': False, 'error': 'Delivery not available for this distance'}), 400
 
     items_total = sum(float(it['weight_kg']) * float(it['price_per_kg']) for it in items)
     total_payable = items_total + float(delivery_fee) + float(tip_amount)
@@ -4295,6 +4443,20 @@ def api_checkout(user_id):
     try:
         cur = conn.cursor()
         cur.execute("BEGIN IMMEDIATE")
+
+        # Re-read delivery settings inside the transaction so the order uses
+        # the current store-owned configuration.
+        cur.execute("SELECT * FROM stores WHERE id=?", (store_id,))
+        tx_store = cur.fetchone()
+        if tx_store is None:
+            conn.rollback()
+            return jsonify({'success': False, 'error': 'Store not found'}), 404
+
+        delivery_fee = calculate_store_delivery_fee(tx_store, km)
+        if delivery_fee is None:
+            conn.rollback()
+            return jsonify({'success': False, 'error': 'Delivery not available for this distance'}), 400
+        total_payable = items_total + float(delivery_fee) + float(tip_amount)
 
         # 1) Insert address into addresses table
         # Make this the default address (simple approach)
