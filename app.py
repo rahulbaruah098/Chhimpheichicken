@@ -385,57 +385,59 @@ def api_location_clear():
 @app.route("/api/store/<int:store_id>/location")
 def api_store_location(store_id):
     """
-    Fetch store's latitude and longitude by store_id.
-    
-    Args:
-        store_id: Integer ID of the store
-        
-    Returns:
-        JSON response with store coordinates:
-        {
-            "ok": true,
-            "store_id": 1,
-            "store_name": "Main Store",
-            "latitude": 23.7307,
-            "longitude": 92.7173
-        }
-        
-    Error responses:
-        404: Store not found
-        400: Store coordinates not available
-        500: Server error
+    Fetch store location + current delivery charge settings for the app.
     """
     try:
-        # Query the stores table for coordinates
-        store = query("SELECT store_name, latitude, longitude FROM stores WHERE id=?", (store_id,))
-        
-        # Check if store exists
+        # Fetch only the fields required by the checkout app
+        store = query("""
+            SELECT
+                store_name,
+                latitude,
+                longitude,
+                delivery_charge_enabled,
+                delivery_fee_0_2_km,
+                delivery_fee_2_5_km,
+                delivery_fee_5_7_km,
+                delivery_fee_7_10_km
+            FROM stores
+            WHERE id=?
+        """, (store_id,))
+
         if not store:
             return jsonify({
-                "ok": False, 
+                "ok": False,
                 "error": "Store not found"
             }), 404
-        
+
         store_data = store[0]
-        
-        # Validate coordinates are present
-        if store_data['latitude'] is None or store_data['longitude'] is None:
+
+        # Keep existing location validation unchanged
+        if store_data["latitude"] is None or store_data["longitude"] is None:
             return jsonify({
                 "ok": False,
                 "error": "Store coordinates not available"
             }), 400
-        
-        # Return success with coordinates
+
+        # Use the SAME delivery configuration already used by website checkout
+        delivery_config = get_store_delivery_config(store_data)
+
         return jsonify({
             "ok": True,
             "store_id": store_id,
-            "store_name": store_data['store_name'],
-            "latitude": float(store_data['latitude']),
-            "longitude": float(store_data['longitude'])
+            "store_name": store_data["store_name"],
+            "latitude": float(store_data["latitude"]),
+            "longitude": float(store_data["longitude"]),
+
+            # Delivery settings for Flutter checkout
+            "delivery_charge_enabled": bool(delivery_config["enabled"]),
+            "delivery_fee_0_2_km": float(delivery_config["fee_0_2_km"]),
+            "delivery_fee_2_5_km": float(delivery_config["fee_2_5_km"]),
+            "delivery_fee_5_7_km": float(delivery_config["fee_5_7_km"]),
+            "delivery_fee_7_10_km": float(delivery_config["fee_7_10_km"]),
+            "max_delivery_km": float(MAX_DELIVERY_KM)
         })
-        
+
     except Exception as e:
-        # Handle any unexpected errors
         return jsonify({
             "ok": False,
             "error": str(e)
