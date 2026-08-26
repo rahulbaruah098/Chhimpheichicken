@@ -569,6 +569,373 @@ def _ensure_api_sessions_table():
 with app.app_context():
     _ensure_api_sessions_table()
 
+
+# =========================================================
+# MOBILE APP ADMIN CONTROLS
+# Minimal persistent backend support for:
+# 1) global maintenance mode
+# 2) admin broadcast notifications
+# =========================================================
+
+MOBILE_MAINTENANCE_MESSAGE = (
+    "Chhimphei Chicken is currently undergoing a system update. "
+    "Chhimphei Chicken will be up and running smoother than ever. "
+    "Sorry for any inconvenience!"
+)
+
+
+def _ensure_mobile_app_controls():
+    """Create only the two small tables required by the mobile admin controls."""
+    try:
+        execute("""
+            CREATE TABLE IF NOT EXISTS mobile_app_control (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                maintenance_mode INTEGER NOT NULL DEFAULT 0
+                    CHECK (maintenance_mode IN (0, 1)),
+                maintenance_message TEXT NOT NULL,
+                updated_by INTEGER,
+                updated_at TEXT,
+                FOREIGN KEY (updated_by) REFERENCES users(id)
+            )
+        """)
+
+        rows = query("SELECT id FROM mobile_app_control WHERE id=1")
+        if not rows:
+            execute("""
+                INSERT INTO mobile_app_control (
+                    id, maintenance_mode, maintenance_message, updated_by, updated_at
+                )
+                VALUES (1, 0, ?, NULL, ?)
+            """, (MOBILE_MAINTENANCE_MESSAGE, datetime.utcnow().isoformat()))
+
+        execute("""
+            CREATE TABLE IF NOT EXISTS mobile_broadcast_notifications (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                message TEXT NOT NULL,
+                created_by INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (created_by) REFERENCES users(id)
+            )
+        """)
+
+        execute("""
+            CREATE TABLE IF NOT EXISTS mobile_update_notifications (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                message TEXT NOT NULL,
+                target_build INTEGER NOT NULL,
+                created_by INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (created_by) REFERENCES users(id)
+            )
+        """)
+    except Exception as e:
+        print(f"[WARN] Mobile admin controls setup skipped: {e}")
+
+
+with app.app_context():
+    _ensure_mobile_app_controls()
+
+
+def api_admin_required(f):
+    """Require an authenticated, active admin for mobile-admin API actions."""
+    @wraps(f)
+    def wrapped(*args, **kwargs):
+        web_user = current_user()
+        user_id = web_user["id"] if web_user else verify_api_token()
+
+        if not user_id:
+            return jsonify({
+                "success": False,
+                "ok": False,
+                "error": "Unauthorized"
+            }), 401
+
+        rows = query(
+            "SELECT id, role, is_active FROM users WHERE id=?",
+            (user_id,)
+        )
+        if not rows:
+            return jsonify({
+                "success": False,
+                "ok": False,
+                "error": "Unauthorized"
+            }), 401
+
+        user = rows[0]
+        if user["role"] != "admin" or int(user["is_active"] or 0) != 1:
+            return jsonify({
+                "success": False,
+                "ok": False,
+                "error": "Admin access required"
+            }), 403
+
+        return f(user_id=user_id, *args, **kwargs)
+
+    return wrapped
+
+
+@app.route("/api/app/status", methods=["GET"])
+def api_mobile_app_status():
+    """
+    Public read-only status used by the Flutter app.
+    Returns maintenance state and the latest admin broadcast.
+    """
+    control_rows = query("""
+        SELECT maintenance_mode, maintenance_message, updated_at
+        FROM mobile_app_control
+        WHERE id=1
+    """)
+
+    if control_rows:
+        control = control_rows[0]
+        maintenance_mode = bool(int(control["maintenance_mode"] or 0))
+        maintenance_message = (
+            control["maintenance_message"] or MOBILE_MAINTENANCE_MESSAGE
+        )
+        maintenance_updated_at = control["updated_at"]
+    else:
+        maintenance_mode = False
+        maintenance_message = MOBILE_MAINTENANCE_MESSAGE
+        maintenance_updated_at = None
+
+    notification_rows = query("""
+        SELECT id, title, message, created_at
+        FROM mobile_broadcast_notifications
+        ORDER BY id DESC
+        LIMIT 1
+    """)
+
+    latest_notification = None
+    if notification_rows:
+        n = notification_rows[0]
+        latest_notification = {
+            "id": int(n["id"]),
+            "title": n["title"],
+            "message": n["message"],
+            "created_at": n["created_at"],
+        }
+
+    # Optional installed build reported by newer Flutter clients.
+    # If it is missing/invalid, do not return a targeted update reminder.
+    client_build = None
+    raw_build = request.args.get("build_number")
+    if raw_build is not None:
+        try:
+            client_build = int(str(raw_build).strip())
+        except (TypeError, ValueError):
+            client_build = None
+
+    update_rows = query("""
+        SELECT id, title, message, target_build, created_at
+        FROM mobile_update_notifications
+        ORDER BY id DESC
+        LIMIT 1
+    """)
+
+    latest_update_notification = None
+    if client_build is not None and update_rows:
+        u = update_rows[0]
+        target_build = int(u["target_build"])
+        if client_build < target_build:
+            latest_update_notification = {
+                "id": int(u["id"]),
+                "title": u["title"],
+                "message": u["message"],
+                "target_build": target_build,
+                "created_at": u["created_at"],
+            }
+
+    response = jsonify({
+        "success": True,
+        "ok": True,
+        "maintenance_mode": maintenance_mode,
+        "maintenance_message": maintenance_message,
+        "maintenance_updated_at": maintenance_updated_at,
+        "latest_notification": latest_notification,
+        "latest_update_notification": latest_update_notification,
+    })
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@app.route("/api/admin/notification", methods=["POST"])
+@api_admin_required
+def api_admin_send_notification(user_id):
+    """Create one new broadcast notification for customer app dashboards."""
+    data = request.get_json(silent=True) or {}
+
+    title = (data.get("title") or "Chhimphei Chicken").strip()
+    message = (data.get("message") or "").strip()
+
+    if not message:
+        return jsonify({
+            "success": False,
+            "ok": False,
+            "error": "Notification message is required"
+        }), 400
+
+    if len(title) > 120:
+        return jsonify({
+            "success": False,
+            "ok": False,
+            "error": "Notification title is too long"
+        }), 400
+
+    if len(message) > 1000:
+        return jsonify({
+            "success": False,
+            "ok": False,
+            "error": "Notification message is too long"
+        }), 400
+
+    notification_id = execute("""
+        INSERT INTO mobile_broadcast_notifications (
+            title, message, created_by, created_at
+        )
+        VALUES (?, ?, ?, ?)
+    """, (
+        title,
+        message,
+        user_id,
+        datetime.utcnow().isoformat(),
+    ))
+
+    return jsonify({
+        "success": True,
+        "ok": True,
+        "message": "Notification sent successfully",
+        "notification": {
+            "id": notification_id,
+            "title": title,
+            "message": message,
+        }
+    }), 201
+
+
+@app.route("/api/admin/update-notification", methods=["POST"])
+@api_admin_required
+def api_admin_send_update_notification(user_id):
+    """Create an update reminder shown only to app builds older than target_build."""
+    data = request.get_json(silent=True) or {}
+
+    title = (data.get("title") or "Update Your App").strip()
+    message = (data.get("message") or "A new version of Chhimphei Chicken is available. Please update your app.").strip()
+
+    try:
+        target_build = int(data.get("target_build"))
+    except (TypeError, ValueError):
+        return jsonify({
+            "success": False,
+            "ok": False,
+            "error": "Valid target_build is required"
+        }), 400
+
+    if target_build <= 0:
+        return jsonify({
+            "success": False,
+            "ok": False,
+            "error": "target_build must be greater than 0"
+        }), 400
+
+    if not message:
+        return jsonify({
+            "success": False,
+            "ok": False,
+            "error": "Notification message is required"
+        }), 400
+
+    if len(title) > 120:
+        return jsonify({
+            "success": False,
+            "ok": False,
+            "error": "Notification title is too long"
+        }), 400
+
+    if len(message) > 1000:
+        return jsonify({
+            "success": False,
+            "ok": False,
+            "error": "Notification message is too long"
+        }), 400
+
+    notification_id = execute("""
+        INSERT INTO mobile_update_notifications (
+            title, message, target_build, created_by, created_at
+        )
+        VALUES (?, ?, ?, ?, ?)
+    """, (
+        title,
+        message,
+        target_build,
+        user_id,
+        datetime.utcnow().isoformat(),
+    ))
+
+    return jsonify({
+        "success": True,
+        "ok": True,
+        "message": "Update reminder sent to outdated app versions",
+        "notification": {
+            "id": notification_id,
+            "title": title,
+            "message": message,
+            "target_build": target_build,
+        }
+    }), 201
+
+
+@app.route("/api/admin/maintenance", methods=["POST"])
+@api_admin_required
+def api_admin_set_maintenance(user_id):
+    """Turn global mobile-app maintenance mode on or off."""
+    data = request.get_json(silent=True) or {}
+    raw_enabled = data.get("enabled")
+
+    if isinstance(raw_enabled, bool):
+        enabled = raw_enabled
+    elif isinstance(raw_enabled, (int, float)) and raw_enabled in (0, 1):
+        enabled = bool(raw_enabled)
+    elif isinstance(raw_enabled, str) and raw_enabled.strip().lower() in {
+        "true", "false", "1", "0", "on", "off"
+    }:
+        enabled = raw_enabled.strip().lower() in {"true", "1", "on"}
+    else:
+        return jsonify({
+            "success": False,
+            "ok": False,
+            "error": "enabled must be true or false"
+        }), 400
+
+    now = datetime.utcnow().isoformat()
+    execute("""
+        UPDATE mobile_app_control
+        SET maintenance_mode=?,
+            maintenance_message=?,
+            updated_by=?,
+            updated_at=?
+        WHERE id=1
+    """, (
+        1 if enabled else 0,
+        MOBILE_MAINTENANCE_MESSAGE,
+        user_id,
+        now,
+    ))
+
+    return jsonify({
+        "success": True,
+        "ok": True,
+        "maintenance_mode": enabled,
+        "maintenance_message": MOBILE_MAINTENANCE_MESSAGE,
+        "message": (
+            "Maintenance mode enabled"
+            if enabled
+            else "Maintenance mode disabled"
+        ),
+    })
+
+
 @app.route("/admin/pincodes", methods=["GET"], endpoint="admin_pincodes")
 @login_required(role='admin')
 def admin_pincodes():
